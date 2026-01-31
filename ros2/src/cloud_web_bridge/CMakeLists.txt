@@ -22,7 +22,7 @@ install(TARGETS cloud_web_bridge_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY config launch
+install(DIRECTORY config/ launch/
   DESTINATION share/${PROJECT_NAME}/
 )
 
