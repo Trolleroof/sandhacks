@@ -1,19 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Maximize2, Minimize2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { SpatialMap, mockSpatialData } from "../components/SpatialMap";
+import { SpatialMap, mockSpatialData, type Position3D } from "../components/SpatialMap";
+import { useRosbridgeSpatial } from "../hooks";
+
+function rosToThree(point: Position3D): Position3D {
+    return { x: point.x, y: point.z, z: -point.y };
+}
 
 export default function MapPage() {
     const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const rosbridge = useRosbridgeSpatial({
+        url: process.env.NEXT_PUBLIC_ROSBRIDGE_URL ?? "ws://localhost:9090",
+        enabled: true,
+    });
+
+    const spatialData = useMemo(() => {
+        const cameraPosition = rosbridge.pose
+            ? rosToThree(rosbridge.pose.position)
+            : mockSpatialData.cameraPosition;
+
+        const mapPoints = rosbridge.pointCloud.length
+            ? rosbridge.pointCloud.map(rosToThree)
+            : mockSpatialData.mapPoints;
+
+        const path = rosbridge.path.length
+            ? rosbridge.path.map(rosToThree)
+            : undefined;
+
+        return {
+            ...mockSpatialData,
+            cameraPosition,
+            mapPoints,
+            path,
+        };
+    }, [rosbridge.pose, rosbridge.pointCloud, rosbridge.path]);
 
     const selectedObject = selectedObjectId
-        ? mockSpatialData.objects.find(o => o.id === selectedObjectId)
+        ? spatialData.objects.find(o => o.id === selectedObjectId)
         : null;
 
     return (
@@ -38,7 +68,10 @@ export default function MapPage() {
 
                     <div className="flex items-center gap-2">
                         <Badge variant="secondary">
-                            {mockSpatialData.objects.length} objects
+                            {spatialData.objects.length} objects
+                        </Badge>
+                        <Badge variant={rosbridge.status === "connected" ? "success" : "secondary"}>
+                            {rosbridge.status === "connected" ? "ROS Live" : "ROS Offline"}
                         </Badge>
                         <Button
                             variant="ghost"
@@ -66,7 +99,7 @@ export default function MapPage() {
                     {/* 3D Map */}
                     <div className={isFullscreen ? 'w-full h-full' : 'h-[500px] lg:h-[calc(100vh-140px)]'}>
                         <SpatialMap
-                            data={mockSpatialData}
+                            data={spatialData}
                             selectedObjectId={selectedObjectId}
                             onObjectSelect={setSelectedObjectId}
                             className="w-full h-full"
@@ -111,7 +144,7 @@ export default function MapPage() {
                                             </div>
                                         </div>
                                         <div className="text-xs text-denim">
-                                            Last seen: {new Date(selectedObject.timestamp).toLocaleString()}
+                                            Last seen: {new Date(selectedObject.timestamp).toISOString()}
                                         </div>
                                         <Button
                                             className="w-full"
@@ -138,7 +171,7 @@ export default function MapPage() {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-2">
-                                        {mockSpatialData.objects.map((obj) => (
+                                        {spatialData.objects.map((obj) => (
                                             <button
                                                 key={obj.id}
                                                 onClick={() => setSelectedObjectId(obj.id)}
@@ -175,19 +208,19 @@ export default function MapPage() {
                                         <div className="text-center p-2 bg-blue-500/10 rounded-lg border border-blue-500/30">
                                             <div className="text-blue-400 text-xs">X</div>
                                             <div className="text-eggshell font-mono">
-                                                {mockSpatialData.cameraPosition.x.toFixed(1)}m
+                                                {spatialData.cameraPosition.x.toFixed(1)}m
                                             </div>
                                         </div>
                                         <div className="text-center p-2 bg-blue-500/10 rounded-lg border border-blue-500/30">
                                             <div className="text-blue-400 text-xs">Y</div>
                                             <div className="text-eggshell font-mono">
-                                                {mockSpatialData.cameraPosition.y.toFixed(1)}m
+                                                {spatialData.cameraPosition.y.toFixed(1)}m
                                             </div>
                                         </div>
                                         <div className="text-center p-2 bg-blue-500/10 rounded-lg border border-blue-500/30">
                                             <div className="text-blue-400 text-xs">Z</div>
                                             <div className="text-eggshell font-mono">
-                                                {mockSpatialData.cameraPosition.z.toFixed(1)}m
+                                                {spatialData.cameraPosition.z.toFixed(1)}m
                                             </div>
                                         </div>
                                     </div>
