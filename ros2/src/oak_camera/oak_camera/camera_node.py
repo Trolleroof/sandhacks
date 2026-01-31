@@ -1,50 +1,72 @@
 #!/usr/bin/env python3
 """
-OAK-D Camera Node with DepthAI Integration and Image Classification
+OAK-D Camera Node with YOLO Spatial Detection (DepthAI v2)
 
-This node connects to an OAK-D camera using the DepthAI library and publishes:
-- RGB camera images
-- Image classification results using MobileNet-SSD (optional)
-- Detection bounding boxes with confidence scores
+Uses YoloSpatialDetectionNetwork to detect objects and compute 3D spatial
+coordinates (x, y, z) via stereo depth. Publishes filtered detections as
+JSON with spatial data for frontend consumption.
 
 Topics published:
 - /oak/rgb/image_raw (sensor_msgs/Image): RGB camera feed
 - /oak/rgb/camera_info (sensor_msgs/CameraInfo): Camera information
-- /oak/nn/detections (vision_msgs/Detection2DArray): Object detections (when enabled)
-- /oak/nn/image (sensor_msgs/Image): Annotated image with detections (when enabled)
-
-Integrates robust device discovery from Luxonis DepthAI with enhanced classification pipeline.
+- /oak/nn/detections (vision_msgs/Detection2DArray): 2D detections (backward compat)
+- /oak/nn/image (sensor_msgs/Image): Annotated image with detections + spatial info
+- /oak/spatial/detections (std_msgs/String): JSON spatial detections with 3D coords
 """
+
+import json
+import math
+import time
+from typing import Optional, Set
 
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image, CameraInfo
-from std_msgs.msg import String, Header
+from std_msgs.msg import String
 from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
-from geometry_msgs.msg import Pose2D
 import cv2
 from cv_bridge import CvBridge
 import depthai as dai
 import numpy as np
-from typing import Optional, Tuple
-import time
-import os
+import blobconverter
+
+# Full 80-class COCO label map (matches YOLO-v4-tiny-tf output)
+COCO_LABELS = [
+    "person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train",
+    "truck", "boat", "traffic light", "fire hydrant", "stop sign",
+    "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep",
+    "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella",
+    "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard",
+    "sports ball", "kite", "baseball bat", "baseball glove", "skateboard",
+    "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork",
+    "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange",
+    "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair",
+    "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor",
+    "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave",
+    "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase",
+    "scissors", "teddy bear", "hair drier", "toothbrush"
+]
 
 
 class OAKCameraNode(Node):
-    """ROS2 node for OAK-D camera with optional image classification"""
+    """ROS2 node for OAK-D camera with YOLO spatial object detection"""
 
     def __init__(self):
         super().__init__('oak_camera_node')
 
         # Declare parameters
         self.declare_parameter('camera_fps', 30)
-        self.declare_parameter('preview_width', 640)
-        self.declare_parameter('preview_height', 480)
-        self.declare_parameter('enable_classification', True)
-        self.declare_parameter('confidence_threshold', 0.5)
-        self.declare_parameter('model_name', 'mobilenet-ssd')
+        self.declare_parameter('preview_width', 416)
+        self.declare_parameter('preview_height', 416)
         self.declare_parameter('frame_id', 'oak_rgb_camera_optical_frame')
+        self.declare_parameter('enable_spatial', True)
+        self.declare_parameter('yolo_confidence_threshold', 0.5)
+        self.declare_parameter('yolo_iou_threshold', 0.5)
+        self.declare_parameter('yolo_model', 'yolo-v4-tiny-tf')
+        self.declare_parameter('depth_lower_threshold', 100)
+        self.declare_parameter('depth_upper_threshold', 10000)
+        self.declare_parameter('bbox_scale_factor', 0.5)
+        self.declare_parameter('target_classes', [24, 26, 28, 39, 41, 56, 63, 65, 66, 67, 73, 74])
         self.declare_parameter('device_discovery_attempts', 5)
         self.declare_parameter('device_discovery_pause', 2.0)
 
@@ -52,34 +74,35 @@ class OAKCameraNode(Node):
         self.camera_fps = self.get_parameter('camera_fps').value
         self.preview_width = self.get_parameter('preview_width').value
         self.preview_height = self.get_parameter('preview_height').value
-        self.enable_classification = self.get_parameter('enable_classification').value
-        self.confidence_threshold = self.get_parameter('confidence_threshold').value
-        self.model_name = self.get_parameter('model_name').value
         self.frame_id = self.get_parameter('frame_id').value
+        self.enable_spatial = self.get_parameter('enable_spatial').value
+        self.confidence_threshold = self.get_parameter('yolo_confidence_threshold').value
+        self.iou_threshold = self.get_parameter('yolo_iou_threshold').value
+        self.yolo_model = self.get_parameter('yolo_model').value
+        self.depth_lower = self.get_parameter('depth_lower_threshold').value
+        self.depth_upper = self.get_parameter('depth_upper_threshold').value
+        self.bbox_scale = self.get_parameter('bbox_scale_factor').value
         self.device_discovery_attempts = self.get_parameter('device_discovery_attempts').value
         self.device_discovery_pause = self.get_parameter('device_discovery_pause').value
+
+        # Target class filter
+        target_list = self.get_parameter('target_classes').value
+        self.target_classes: Set[int] = set(target_list) if target_list else set()
 
         # Publishers
         self.image_pub = self.create_publisher(Image, '/oak/rgb/image_raw', 10)
         self.camera_info_pub = self.create_publisher(CameraInfo, '/oak/rgb/camera_info', 10)
         self.detections_pub = self.create_publisher(Detection2DArray, '/oak/nn/detections', 10)
         self.annotated_image_pub = self.create_publisher(Image, '/oak/nn/image', 10)
+        self.spatial_pub = self.create_publisher(String, '/oak/spatial/detections', 10)
 
-        # CV Bridge for image conversion
+        # CV Bridge
         self.bridge = CvBridge()
-
-        # MobileNet-SSD labels
-        self.labels = [
-            "background", "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat",
-            "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant",
-            "sheep", "sofa", "train", "tvmonitor"
-        ]
 
         # Camera state
         self.device: Optional[dai.Device] = None
         self.q_rgb = None
         self.q_detections = None
-        self.q_passthrough = None
         self.pipeline_running = False
 
         # Try initial connection
@@ -88,27 +111,27 @@ class OAKCameraNode(Node):
         # Timer for publishing
         self.timer = self.create_timer(1.0 / self.camera_fps, self.timer_callback)
 
-        self.get_logger().info('OAK Camera Node initialized')
+        self.get_logger().info('OAK Camera Node initialized (YOLO Spatial Detection)')
         self.get_logger().info(f'  FPS: {self.camera_fps}')
-        self.get_logger().info(f'  Resolution: {self.preview_width}x{self.preview_height}')
-        self.get_logger().info(f'  Classification enabled: {self.enable_classification}')
-        self.get_logger().info(f'  Model: {self.model_name}')
-        self.get_logger().info(f'  Frame ID: {self.frame_id}')
+        self.get_logger().info(f'  Preview: {self.preview_width}x{self.preview_height}')
+        self.get_logger().info(f'  Spatial detection: {self.enable_spatial}')
+        self.get_logger().info(f'  YOLO model: {self.yolo_model}')
+        self.get_logger().info(f'  Confidence: {self.confidence_threshold}')
+        self.get_logger().info(f'  Depth range: {self.depth_lower}-{self.depth_upper}mm')
+        if self.target_classes:
+            names = [COCO_LABELS[i] for i in sorted(self.target_classes) if i < len(COCO_LABELS)]
+            self.get_logger().info(f'  Target classes: {names}')
+        else:
+            self.get_logger().info('  Target classes: ALL (no filter)')
 
     def wait_for_device(self) -> Optional[dai.Device]:
-        """
-        Find and connect to the first available DepthAI device.
-
-        Uses robust device discovery with bootloader and application scanning,
-        supporting PoE/TCP cameras and devices in bootloader state.
-        """
+        """Find and connect to the first available DepthAI device."""
         self.get_logger().info('Searching for devices...')
 
         for attempt in range(1, self.device_discovery_attempts + 1):
             try:
                 candidates = []
 
-                # Scan for bootloader devices
                 try:
                     bl_devices = dai.DeviceBootloader.getAllAvailableDevices()
                     self.get_logger().info(f'[scan {attempt}] bootloader sees {len(bl_devices)} device(s)')
@@ -116,7 +139,6 @@ class OAKCameraNode(Node):
                 except Exception as e:
                     self.get_logger().debug(f'[scan {attempt}] bootloader scan: {e}')
 
-                # Scan for application devices
                 try:
                     app_devices = dai.Device.getAllAvailableDevices()
                     self.get_logger().info(f'[scan {attempt}] application sees {len(app_devices)} device(s)')
@@ -124,7 +146,6 @@ class OAKCameraNode(Node):
                 except Exception as e:
                     self.get_logger().debug(f'[scan {attempt}] application scan: {e}')
 
-                # Try to connect to each candidate
                 for info in candidates:
                     try:
                         name = getattr(info, 'name', None) or '?'
@@ -150,56 +171,92 @@ class OAKCameraNode(Node):
         self.get_logger().error('No devices found after maximum attempts')
         return None
 
-    def setup_camera(self):
-        """Initialize the OAK camera and create the DepthAI pipeline"""
+    def _get_yolo_blob_path(self) -> str:
+        """Download YOLO blob from Luxonis model zoo via blobconverter."""
+        self.get_logger().info(f'Fetching YOLO model: {self.yolo_model}')
         try:
-            # Discover and connect to device
+            blob_path = blobconverter.from_zoo(
+                name=self.yolo_model,
+                shaves=6,
+                zoo_type="depthai",
+            )
+            self.get_logger().info(f'YOLO blob path: {blob_path}')
+            return blob_path
+        except Exception as e:
+            self.get_logger().error(f'Failed to download YOLO model: {e}')
+            return ""
+
+    def setup_camera(self):
+        """Initialize the OAK camera with YOLO spatial detection pipeline."""
+        try:
             self.device = self.wait_for_device()
             if not self.device:
                 self.get_logger().error('Cannot continue without camera device')
                 return
 
-            # Create pipeline
             pipeline = dai.Pipeline()
 
-            # Create RGB camera node
+            # --- RGB Camera ---
             cam_rgb = pipeline.create(dai.node.ColorCamera)
             cam_rgb.setPreviewSize(self.preview_width, self.preview_height)
+            cam_rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
             cam_rgb.setInterleaved(False)
-            cam_rgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.RGB)
+            cam_rgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
             cam_rgb.setFps(self.camera_fps)
 
-            # Create XLink output for preview
+            # XLink output for RGB preview
             xout_rgb = pipeline.create(dai.node.XLinkOut)
             xout_rgb.setStreamName("rgb")
             cam_rgb.preview.link(xout_rgb.input)
 
-            if self.enable_classification:
-                # Create neural network node for object detection
-                detection_nn = pipeline.create(dai.node.MobileNetDetectionNetwork)
-                detection_nn.setConfidenceThreshold(self.confidence_threshold)
+            if self.enable_spatial:
+                # --- Mono Cameras for Stereo Depth ---
+                mono_left = pipeline.create(dai.node.MonoCamera)
+                mono_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+                mono_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
 
-                model_path = self._get_model_path()
-                if model_path and os.path.exists(model_path):
-                    detection_nn.setBlobPath(model_path)
-                    self.get_logger().info(f'Using model: {model_path}')
+                mono_right = pipeline.create(dai.node.MonoCamera)
+                mono_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+                mono_right.setBoardSocket(dai.CameraBoardSocket.RIGHT)
+
+                # --- Stereo Depth ---
+                stereo = pipeline.create(dai.node.StereoDepth)
+                stereo.setDefaultProfilePreset(dai.node.StereoDepth.PresetMode.HIGH_DENSITY)
+                stereo.setDepthAlign(dai.CameraBoardSocket.RGB)
+                mono_left.out.link(stereo.left)
+                mono_right.out.link(stereo.right)
+
+                # --- YOLO Spatial Detection Network ---
+                blob_path = self._get_yolo_blob_path()
+                if not blob_path:
+                    self.get_logger().error('No YOLO blob available, spatial detection disabled')
+                    self.enable_spatial = False
                 else:
-                    self.get_logger().warn(f'Model not found at {model_path}, classification disabled')
-                    self.enable_classification = False
+                    yolo = pipeline.create(dai.node.YoloSpatialDetectionNetwork)
+                    yolo.setBlobPath(blob_path)
+                    yolo.setConfidenceThreshold(self.confidence_threshold)
+                    yolo.setNumClasses(80)
+                    yolo.setCoordinateSize(4)
+                    yolo.setAnchors([10, 14, 23, 27, 37, 58, 81, 82, 135, 169, 344, 319])
+                    yolo.setAnchorMasks({"side26": [0, 1, 2], "side13": [3, 4, 5]})
+                    yolo.setIouThreshold(self.iou_threshold)
+                    yolo.input.setBlocking(False)
 
-                if self.enable_classification:
-                    # Link camera to neural network
-                    cam_rgb.preview.link(detection_nn.input)
+                    # Spatial config
+                    yolo.setBoundingBoxScaleFactor(self.bbox_scale)
+                    yolo.setDepthLowerThreshold(self.depth_lower)
+                    yolo.setDepthUpperThreshold(self.depth_upper)
 
-                    # Create XLink output for detections
-                    xout_nn = pipeline.create(dai.node.XLinkOut)
-                    xout_nn.setStreamName("detections")
-                    detection_nn.out.link(xout_nn.input)
+                    # Link RGB to YOLO
+                    cam_rgb.preview.link(yolo.input)
 
-                    # Create passthrough for synced frames
-                    xout_passthrough = pipeline.create(dai.node.XLinkOut)
-                    xout_passthrough.setStreamName("passthrough")
-                    detection_nn.passthrough.link(xout_passthrough.input)
+                    # Link stereo depth to YOLO
+                    stereo.depth.link(yolo.inputDepth)
+
+                    # XLink output for spatial detections
+                    xout_det = pipeline.create(dai.node.XLinkOut)
+                    xout_det.setStreamName("detections")
+                    yolo.out.link(xout_det.input)
 
             # Start pipeline
             self.device.startPipeline(pipeline)
@@ -207,9 +264,8 @@ class OAKCameraNode(Node):
             # Get output queues
             self.q_rgb = self.device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
 
-            if self.enable_classification:
+            if self.enable_spatial:
                 self.q_detections = self.device.getOutputQueue(name="detections", maxSize=4, blocking=False)
-                self.q_passthrough = self.device.getOutputQueue(name="passthrough", maxSize=4, blocking=False)
 
             self.pipeline_running = True
             self.get_logger().info('Camera pipeline started successfully')
@@ -218,30 +274,9 @@ class OAKCameraNode(Node):
             self.get_logger().error(f'Failed to initialize camera: {str(e)}')
             self.pipeline_running = False
 
-    def _get_model_path(self) -> str:
-        """Get the path to the neural network model blob"""
-        # DepthAI provides built-in models, but you can also specify custom paths
-        # For now, we'll use the default MobileNet-SSD model
-        # In production, you'd download and specify the actual blob path
-        import os
-        model_dir = os.path.expanduser('~/.cache/depthai/models')
-        model_path = os.path.join(model_dir, 'mobilenet-ssd_openvino_2021.4_6shave.blob')
-
-        # If model doesn't exist, log warning and use default
-        if not os.path.exists(model_path):
-            self.get_logger().warn(
-                f'Model not found at {model_path}. '
-                'Download from: https://github.com/luxonis/depthai-python/tree/main/examples/models'
-            )
-            # Return a placeholder path - in production you'd handle this better
-            return model_path
-
-        return model_path
-
     def timer_callback(self):
-        """Main callback to read camera frames and publish data"""
+        """Main callback to read camera frames and publish data."""
         try:
-            # Check if pipeline is running
             if not self.pipeline_running or self.device is None:
                 if not self.device or not self.device.isPipelineRunning():
                     self.get_logger().warn('Pipeline not running, attempting to restart...')
@@ -253,39 +288,40 @@ class OAKCameraNode(Node):
             if in_rgb is None:
                 return
 
-            # Convert to OpenCV format
             frame = in_rgb.getCvFrame()
 
             # Publish raw image
             self.publish_image(frame)
-
-            # Publish camera info
             self.publish_camera_info()
 
-            # Process detections if enabled
-            if self.enable_classification and self.q_detections is not None:
+            # Process spatial detections
+            if self.enable_spatial and self.q_detections is not None:
                 in_det = self.q_detections.tryGet()
-                in_pass = self.q_passthrough.tryGet()
-
-                if in_det is not None and in_pass is not None:
+                if in_det is not None:
                     detections = in_det.detections
-                    frame_pass = in_pass.getCvFrame()
 
-                    # Publish detections
-                    self.publish_detections(detections, frame.shape)
+                    # Filter to target classes
+                    if self.target_classes:
+                        filtered = [d for d in detections if int(d.label) in self.target_classes]
+                    else:
+                        filtered = list(detections)
 
-                    # Publish annotated image
-                    annotated_frame = self.annotate_frame(frame_pass, detections)
-                    self.publish_annotated_image(annotated_frame)
+                    # Publish all formats
+                    self.publish_detections_2d(filtered, frame.shape)
+                    self.publish_spatial_detections(filtered)
+
+                    # Annotated image
+                    annotated = self.annotate_frame(frame, filtered)
+                    self.publish_annotated_image(annotated)
 
         except Exception as e:
             self.get_logger().error(f'Error in timer callback: {str(e)}')
             self.pipeline_running = False
 
     def publish_image(self, frame: np.ndarray):
-        """Publish raw RGB image"""
+        """Publish raw RGB image."""
         try:
-            msg = self.bridge.cv2_to_imgmsg(frame, encoding='rgb8')
+            msg = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')
             msg.header.stamp = self.get_clock().now().to_msg()
             msg.header.frame_id = self.frame_id
             self.image_pub.publish(msg)
@@ -293,17 +329,16 @@ class OAKCameraNode(Node):
             self.get_logger().error(f'Failed to publish image: {str(e)}')
 
     def publish_camera_info(self):
-        """Publish camera calibration info"""
+        """Publish camera calibration info."""
         msg = CameraInfo()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = self.frame_id
         msg.width = self.preview_width
         msg.height = self.preview_height
-        # Add calibration parameters if available
         self.camera_info_pub.publish(msg)
 
-    def publish_detections(self, detections, frame_shape):
-        """Publish object detections"""
+    def publish_detections_2d(self, detections, frame_shape):
+        """Publish 2D detections for backward compatibility."""
         msg = Detection2DArray()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = self.frame_id
@@ -313,7 +348,6 @@ class OAKCameraNode(Node):
         for detection in detections:
             det_msg = Detection2D()
 
-            # Bounding box (center + size format)
             x_min = detection.xmin * width
             y_min = detection.ymin * height
             x_max = detection.xmax * width
@@ -324,9 +358,9 @@ class OAKCameraNode(Node):
             det_msg.bbox.size_x = x_max - x_min
             det_msg.bbox.size_y = y_max - y_min
 
-            # Classification result
             result = ObjectHypothesisWithPose()
-            result.hypothesis.class_id = str(int(detection.label))
+            label_id = int(detection.label)
+            result.hypothesis.class_id = COCO_LABELS[label_id] if label_id < len(COCO_LABELS) else str(label_id)
             result.hypothesis.score = float(detection.confidence)
             det_msg.results.append(result)
 
@@ -334,40 +368,99 @@ class OAKCameraNode(Node):
 
         self.detections_pub.publish(msg)
 
+    def publish_spatial_detections(self, detections):
+        """Publish spatial detections as JSON with 3D coordinates."""
+        now = self.get_clock().now()
+        stamp = now.nanoseconds / 1e9
+
+        det_list = []
+        for detection in detections:
+            label_id = int(detection.label)
+            label = COCO_LABELS[label_id] if label_id < len(COCO_LABELS) else f"class_{label_id}"
+
+            sx = float(detection.spatialCoordinates.x)  # mm
+            sy = float(detection.spatialCoordinates.y)  # mm
+            sz = float(detection.spatialCoordinates.z)  # mm
+
+            distance_mm = math.sqrt(sx * sx + sy * sy + sz * sz)
+
+            det_list.append({
+                "label": label,
+                "label_id": label_id,
+                "confidence": round(float(detection.confidence), 3),
+                "bbox": {
+                    "x_min": round(float(detection.xmin), 4),
+                    "y_min": round(float(detection.ymin), 4),
+                    "x_max": round(float(detection.xmax), 4),
+                    "y_max": round(float(detection.ymax), 4),
+                },
+                "spatial_mm": {
+                    "x": round(sx, 1),
+                    "y": round(sy, 1),
+                    "z": round(sz, 1),
+                },
+                "spatial_meters": {
+                    "x": round(sx / 1000.0, 3),
+                    "y": round(sy / 1000.0, 3),
+                    "z": round(sz / 1000.0, 3),
+                },
+                "distance_meters": round(distance_mm / 1000.0, 3),
+            })
+
+        payload = {
+            "timestamp": round(stamp, 3),
+            "frame_id": self.frame_id,
+            "detections": det_list,
+        }
+
+        msg = String()
+        msg.data = json.dumps(payload)
+        self.spatial_pub.publish(msg)
+
     def annotate_frame(self, frame: np.ndarray, detections) -> np.ndarray:
-        """Draw bounding boxes and labels on frame"""
+        """Draw bounding boxes, labels, and spatial coordinates on frame."""
         annotated = frame.copy()
         height, width = frame.shape[:2]
 
         for detection in detections:
-            # Get bounding box coordinates
             x1 = int(detection.xmin * width)
             y1 = int(detection.ymin * height)
             x2 = int(detection.xmax * width)
             y2 = int(detection.ymax * height)
 
-            # Get label
-            label_id = detection.label
-            label = self.labels[label_id] if label_id < len(self.labels) else f"Class {label_id}"
+            label_id = int(detection.label)
+            label = COCO_LABELS[label_id] if label_id < len(COCO_LABELS) else f"class_{label_id}"
             confidence = detection.confidence
 
-            # Draw bounding box
-            color = (0, 255, 0)  # Green
+            sx = detection.spatialCoordinates.x
+            sy = detection.spatialCoordinates.y
+            sz = detection.spatialCoordinates.z
+            dist_m = math.sqrt(sx * sx + sy * sy + sz * sz) / 1000.0
+
+            color = (0, 255, 0)
             cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
 
-            # Draw label
-            label_text = f"{label}: {confidence:.2f}"
-            cv2.putText(
-                annotated, label_text, (x1, y1 - 10),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2
-            )
+            # Label + confidence
+            label_text = f"{label} {confidence:.0%}"
+            cv2.putText(annotated, label_text, (x1, y1 - 25),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+            # Spatial info
+            spatial_text = f"X:{sx:.0f} Y:{sy:.0f} Z:{sz:.0f}mm"
+            cv2.putText(annotated, spatial_text, (x1, y1 - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+
+            # Distance below box
+            dist_text = f"{dist_m:.2f}m"
+            cv2.putText(annotated, dist_text, (x1, y2 + 15),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 200, 255), 2)
 
         return annotated
 
     def publish_annotated_image(self, frame: np.ndarray):
-        """Publish annotated image with detections"""
+        """Publish annotated image with detections."""
         try:
-            msg = self.bridge.cv2_to_imgmsg(frame, encoding='rgb8')
+            msg = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')
             msg.header.stamp = self.get_clock().now().to_msg()
             msg.header.frame_id = self.frame_id
             self.annotated_image_pub.publish(msg)
@@ -375,7 +468,7 @@ class OAKCameraNode(Node):
             self.get_logger().error(f'Failed to publish annotated image: {str(e)}')
 
     def destroy_node(self):
-        """Cleanup when node is destroyed"""
+        """Cleanup when node is destroyed."""
         self.pipeline_running = False
         if self.device is not None:
             try:

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Launch file for OAK-D camera node with image classification
+Launch file for OAK-D camera node with YOLO spatial detection
 
 This launch file starts the OAK camera node with configurable parameters.
 
 Usage:
     ros2 launch oak_camera camera.launch.py
-    ros2 launch oak_camera camera.launch.py enable_classification:=false
+    ros2 launch oak_camera camera.launch.py enable_spatial:=false
+    ros2 launch oak_camera camera.launch.py yolo_confidence_threshold:=0.7
 """
 
 import os
@@ -23,16 +24,34 @@ def generate_launch_description():
     config_file = os.path.join(pkg_dir, 'config', 'camera_params.yaml')
 
     # Declare launch arguments
-    enable_classification_arg = DeclareLaunchArgument(
-        'enable_classification',
+    enable_spatial_arg = DeclareLaunchArgument(
+        'enable_spatial',
         default_value='true',
-        description='Enable image classification'
+        description='Enable YOLO spatial detection with stereo depth'
     )
 
     camera_fps_arg = DeclareLaunchArgument(
         'camera_fps',
         default_value='30',
         description='Camera frames per second'
+    )
+
+    confidence_arg = DeclareLaunchArgument(
+        'yolo_confidence_threshold',
+        default_value='0.5',
+        description='YOLO detection confidence threshold'
+    )
+
+    depth_lower_arg = DeclareLaunchArgument(
+        'depth_lower_threshold',
+        default_value='100',
+        description='Minimum depth in mm for spatial calculations'
+    )
+
+    depth_upper_arg = DeclareLaunchArgument(
+        'depth_upper_threshold',
+        default_value='10000',
+        description='Maximum depth in mm for spatial calculations'
     )
 
     # Camera node
@@ -44,17 +63,21 @@ def generate_launch_description():
         parameters=[
             config_file,
             {
-                'enable_classification': LaunchConfiguration('enable_classification'),
+                'enable_spatial': LaunchConfiguration('enable_spatial'),
                 'camera_fps': LaunchConfiguration('camera_fps'),
+                'yolo_confidence_threshold': LaunchConfiguration('yolo_confidence_threshold'),
+                'depth_lower_threshold': LaunchConfiguration('depth_lower_threshold'),
+                'depth_upper_threshold': LaunchConfiguration('depth_upper_threshold'),
             }
         ],
-        remappings=[
-            # Remap topics if needed
-        ]
+        remappings=[]
     )
 
     return LaunchDescription([
-        enable_classification_arg,
+        enable_spatial_arg,
         camera_fps_arg,
+        confidence_arg,
+        depth_lower_arg,
+        depth_upper_arg,
         camera_node,
     ])
