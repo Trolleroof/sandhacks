@@ -6,9 +6,9 @@
 // web-facing topics consumed by rosbridge → Three.js.
 //
 // Subscriptions          → Publications
-//   /cloud_ground        → /web/pointcloud   (Base64-encoded PointCloud2)
-//   /rtabmap/odom        → /web/pose         (position + quaternion)
-//   /rtabmap/mapPath     → /web/path         (array of positions)
+//   /cloud_map           → /web/pointcloud   (Base64-encoded PointCloud2)
+//   /odom                → /web/pose         (position + quaternion)
+//   /mapPath             → /web/path         (array of positions)
 // ---------------------------------------------------------------------------
 
 #include <chrono>
@@ -96,15 +96,15 @@ public:
 
     // ---- subscriptions -----------------------------------------------------
     cloud_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
-        "/cloud_ground", rclcpp::QoS(10),
+        "/cloud_map", rclcpp::QoS(10),
         [this](const sensor_msgs::msg::PointCloud2& msg) { onCloud(msg); });
 
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
-        "/rtabmap/odom", rclcpp::QoS(10),
+        "/odom", rclcpp::QoS(10),
         [this](const nav_msgs::msg::Odometry& msg) { onOdom(msg); });
 
     path_sub_ = create_subscription<nav_msgs::msg::Path>(
-        "/rtabmap/mapPath", rclcpp::QoS(10),
+        "/mapPath", rclcpp::QoS(10),
         [this](const nav_msgs::msg::Path& msg) { onPath(msg); });
 
     // ---- publishers --------------------------------------------------------
