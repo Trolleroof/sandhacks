@@ -1,0 +1,18 @@
+# OAK Camera Configuration Parameters
+
+oak_camera_node:
+  ros__parameters:
+    # Camera settings
+    camera_fps: 30
+    preview_width: 640
+    preview_height: 480
+    frame_id: 'oak_rgb_camera_optical_frame'
+
+    # Neural network settings
+    enable_classification: true
+    confidence_threshold: 0.5
+    model_name: 'mobilenet-ssd'
+
+    # Device discovery settings
+    device_discovery_attempts: 5
+    device_discovery_pause: 2.0
