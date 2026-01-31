@@ -43,7 +43,6 @@ export function useTextToSpeech(
 
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
-    const [isSupported, setIsSupported] = useState(false);
     const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
     const [currentVoice, setCurrentVoice] = useState<SpeechSynthesisVoice | null>(
         null
@@ -51,53 +50,53 @@ export function useTextToSpeech(
     const [error, setError] = useState<string | null>(null);
 
     const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+    const isSupported =
+        typeof window !== "undefined" && "speechSynthesis" in window;
 
     // Check for browser support and load voices
     useEffect(() => {
-        if (typeof window !== "undefined" && "speechSynthesis" in window) {
-            setIsSupported(true);
+        if (!isSupported) return;
 
-            const loadVoices = () => {
-                const availableVoices = speechSynthesis.getVoices();
-                setVoices(availableVoices);
+        const loadVoices = () => {
+            const availableVoices = speechSynthesis.getVoices();
+            setVoices(availableVoices);
 
-                // Set default voice
-                if (availableVoices.length > 0) {
-                    // Try to find a voice matching the language preference
-                    const preferredVoice =
-                        availableVoices.find(
-                            (v) =>
-                                v.lang.startsWith(language.split("-")[0]) && v.localService
-                        ) ||
-                        availableVoices.find((v) =>
-                            v.lang.startsWith(language.split("-")[0])
-                        ) ||
-                        availableVoices.find((v) => v.default) ||
-                        availableVoices[0];
+            // Set default voice
+            if (availableVoices.length > 0) {
+                // Try to find a voice matching the language preference
+                const preferredVoice =
+                    availableVoices.find(
+                        (v) =>
+                            v.lang.startsWith(language.split("-")[0]) && v.localService
+                    ) ||
+                    availableVoices.find((v) =>
+                        v.lang.startsWith(language.split("-")[0])
+                    ) ||
+                    availableVoices.find((v) => v.default) ||
+                    availableVoices[0];
 
-                    if (initialVoice) {
-                        const matchedVoice = availableVoices.find(
-                            (v) => v.name === initialVoice || v.voiceURI === initialVoice
-                        );
-                        if (matchedVoice) {
-                            setCurrentVoice(matchedVoice);
-                            return;
-                        }
+                if (initialVoice) {
+                    const matchedVoice = availableVoices.find(
+                        (v) => v.name === initialVoice || v.voiceURI === initialVoice
+                    );
+                    if (matchedVoice) {
+                        setCurrentVoice(matchedVoice);
+                        return;
                     }
-
-                    setCurrentVoice(preferredVoice);
                 }
-            };
 
-            // Voices might not be loaded immediately
-            loadVoices();
-            speechSynthesis.onvoiceschanged = loadVoices;
+                setCurrentVoice(preferredVoice);
+            }
+        };
 
-            return () => {
-                speechSynthesis.onvoiceschanged = null;
-            };
-        }
-    }, [language, initialVoice]);
+        // Voices might not be loaded immediately
+        loadVoices();
+        speechSynthesis.onvoiceschanged = loadVoices;
+
+        return () => {
+            speechSynthesis.onvoiceschanged = null;
+        };
+    }, [language, initialVoice, isSupported]);
 
     const speak = useCallback(
         (text: string) => {

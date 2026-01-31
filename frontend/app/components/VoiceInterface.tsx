@@ -130,7 +130,7 @@ export function VoiceInterface() {
         if (!isListening && transcript) {
             handleSearch(transcript);
         }
-    }, [isListening, transcript]);
+    }, [isListening, transcript, handleSearch]);
 
     const handleSearch = useCallback(
         async (searchQuery: string) => {

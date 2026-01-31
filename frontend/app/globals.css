@@ -1,26 +1,41 @@
 @import "tailwindcss";
 
+/* FRONTEND.md Color Palette */
 :root {
-  --background: #0a0a0f;
-  --foreground: #f0f0f5;
-  --primary: #6366f1;
-  --primary-light: #818cf8;
-  --primary-dark: #4f46e5;
-  --secondary: #06b6d4;
-  --accent: #f472b6;
+  /* Core Colors */
+  --ink: #0d1321;
+  --space: #1d2d44;
+  --slateblue: #3e5c76;
+  --denim: #748cab;
+  --eggshell: #f0ebd8;
+
+  /* Semantic Mappings */
+  --background: var(--ink);
+  --foreground: var(--eggshell);
+  --surface: var(--space);
+  --surface-light: rgba(29, 45, 68, 0.8);
+  --surface-border: rgba(62, 92, 118, 0.4);
+  --text-muted: var(--denim);
+  --primary: var(--slateblue);
+  --ring: var(--denim);
+
+  /* Status Colors */
   --success: #22c55e;
   --warning: #f59e0b;
   --error: #ef4444;
-  --surface: rgba(255, 255, 255, 0.03);
-  --surface-light: rgba(255, 255, 255, 0.06);
-  --surface-border: rgba(255, 255, 255, 0.08);
-  --text-muted: rgba(255, 255, 255, 0.5);
-  --gradient-1: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
-  --gradient-2: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
-  --shadow-glow: 0 0 60px rgba(99, 102, 241, 0.3);
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, var(--slateblue) 0%, var(--denim) 100%);
+  --gradient-subtle: linear-gradient(135deg, var(--space) 0%, rgba(29, 45, 68, 0.6) 100%);
+  --shadow-glow: 0 0 60px rgba(62, 92, 118, 0.3);
 }
 
 @theme inline {
+  --color-ink: var(--ink);
+  --color-space: var(--space);
+  --color-slateblue: var(--slateblue);
+  --color-denim: var(--denim);
+  --color-eggshell: var(--eggshell);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -47,13 +62,24 @@ body {
   flex-direction: column;
 }
 
-/* Animated Background */
+/* Subtle Starfield Background */
 .background-gradient {
   position: fixed;
   inset: 0;
-  background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.15), transparent),
-    radial-gradient(ellipse 60% 40% at 80% 50%, rgba(139, 92, 246, 0.1), transparent),
-    radial-gradient(ellipse 60% 40% at 20% 80%, rgba(6, 182, 212, 0.1), transparent);
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(62, 92, 118, 0.15), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 50%, rgba(116, 140, 171, 0.1), transparent),
+    radial-gradient(ellipse 60% 40% at 20% 80%, rgba(29, 45, 68, 0.2), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Noise texture overlay for premium feel */
+.background-noise {
+  position: fixed;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
   pointer-events: none;
   z-index: 0;
 }
@@ -70,14 +96,14 @@ body {
   position: absolute;
   border-radius: 50%;
   filter: blur(80px);
-  opacity: 0.4;
+  opacity: 0.25;
   animation: float 20s ease-in-out infinite;
 }
 
 .orb-1 {
   width: 600px;
   height: 600px;
-  background: var(--primary);
+  background: var(--slateblue);
   top: -200px;
   right: -200px;
   animation-delay: 0s;
@@ -86,7 +112,7 @@ body {
 .orb-2 {
   width: 400px;
   height: 400px;
-  background: var(--secondary);
+  background: var(--denim);
   bottom: -100px;
   left: -100px;
   animation-delay: -7s;
@@ -95,7 +121,7 @@ body {
 .orb-3 {
   width: 300px;
   height: 300px;
-  background: var(--accent);
+  background: var(--space);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -103,16 +129,13 @@ body {
 }
 
 @keyframes float {
-
   0%,
   100% {
     transform: translate(0, 0) scale(1);
   }
-
   33% {
     transform: translate(30px, -30px) scale(1.1);
   }
-
   66% {
     transform: translate(-20px, 20px) scale(0.95);
   }
@@ -157,9 +180,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--gradient-1);
-  border-radius: 12px;
-  color: white;
+  background: var(--gradient-primary);
+  border-radius: 14px;
+  color: var(--eggshell);
   box-shadow: var(--shadow-glow);
 }
 
@@ -171,17 +194,14 @@ body {
 .logo-text h1 {
   font-size: 1.5rem;
   font-weight: 700;
-  background: var(--gradient-1);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--eggshell);
   margin: 0;
   line-height: 1.2;
 }
 
 .logo-text p {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--denim);
   margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -192,16 +212,16 @@ body {
   gap: 0.5rem;
   background: var(--surface);
   padding: 4px;
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid var(--surface-border);
 }
 
 .nav-tab {
   padding: 0.5rem 1rem;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--text-muted);
+  color: var(--denim);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -209,12 +229,12 @@ body {
 }
 
 .nav-tab:hover {
-  color: var(--foreground);
+  color: var(--eggshell);
 }
 
 .nav-tab.active {
-  background: var(--gradient-1);
-  color: white;
+  background: var(--slateblue);
+  color: var(--eggshell);
 }
 
 /* Hero Section */
@@ -227,10 +247,7 @@ body {
   font-size: 2rem;
   font-weight: 700;
   margin: 0 0 0.75rem;
-  background: linear-gradient(to right, var(--foreground), var(--text-muted));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--eggshell);
 }
 
 @media (min-width: 640px) {
@@ -241,7 +258,7 @@ body {
 
 .hero p {
   font-size: 1rem;
-  color: var(--text-muted);
+  color: var(--denim);
   max-width: 500px;
   margin: 0 auto;
 }
@@ -250,7 +267,7 @@ body {
 .voice-interface {
   background: var(--surface);
   border: 1px solid var(--surface-border);
-  border-radius: 24px;
+  border-radius: 18px;
   padding: 2rem;
   margin-bottom: 2.5rem;
   backdrop-filter: blur(20px);
@@ -277,7 +294,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--denim);
 }
 
 .indicator-dot {
@@ -297,16 +314,16 @@ body {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--denim);
 }
 
 .voice-selector select {
   background: var(--surface-light);
   border: 1px solid var(--surface-border);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
-  color: var(--foreground);
+  color: var(--eggshell);
   cursor: pointer;
   max-width: 150px;
 }
@@ -325,8 +342,8 @@ body {
   height: 120px;
   border-radius: 50%;
   border: none;
-  background: var(--gradient-1);
-  color: white;
+  background: var(--gradient-primary);
+  color: var(--eggshell);
   cursor: pointer;
   position: relative;
   transition: all 0.3s ease;
@@ -338,7 +355,7 @@ body {
   position: absolute;
   inset: -4px;
   border-radius: 50%;
-  background: var(--gradient-1);
+  background: var(--gradient-primary);
   opacity: 0;
   z-index: -1;
   transition: opacity 0.3s ease;
@@ -355,7 +372,7 @@ body {
 
 .voice-button.listening {
   animation: pulse 1.5s ease-in-out infinite;
-  background: var(--gradient-2);
+  background: linear-gradient(135deg, var(--denim) 0%, var(--slateblue) 100%);
 }
 
 .voice-button.speaking {
@@ -363,14 +380,12 @@ body {
 }
 
 @keyframes pulse {
-
   0%,
   100% {
     box-shadow: var(--shadow-glow), 0 10px 40px rgba(0, 0, 0, 0.3);
   }
-
   50% {
-    box-shadow: 0 0 100px rgba(99, 102, 241, 0.5), 0 10px 40px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 100px rgba(62, 92, 118, 0.5), 0 10px 40px rgba(0, 0, 0, 0.3);
   }
 }
 
@@ -398,7 +413,7 @@ body {
 .wave {
   width: 6px;
   height: 24px;
-  background: white;
+  background: var(--eggshell);
   border-radius: 3px;
   animation: wave 0.8s ease-in-out infinite;
 }
@@ -412,12 +427,10 @@ body {
 }
 
 @keyframes wave {
-
   0%,
   100% {
     height: 24px;
   }
-
   50% {
     height: 48px;
   }
@@ -425,7 +438,7 @@ body {
 
 .voice-hint {
   font-size: 0.875rem;
-  color: var(--text-muted);
+  color: var(--denim);
   text-align: center;
 }
 
@@ -439,8 +452,8 @@ body {
 .loading-icon .spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+  border: 3px solid rgba(240, 235, 216, 0.3);
+  border-top-color: var(--eggshell);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -451,7 +464,7 @@ body {
   color: var(--warning);
   background: rgba(245, 158, 11, 0.1);
   padding: 0.25rem 0.75rem;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 /* Text Input Form */
@@ -464,13 +477,13 @@ body {
   gap: 0.5rem;
   background: var(--surface-light);
   border: 1px solid var(--surface-border);
-  border-radius: 16px;
+  border-radius: 14px;
   padding: 0.5rem;
   transition: border-color 0.2s ease;
 }
 
 .input-wrapper:focus-within {
-  border-color: var(--primary);
+  border-color: var(--slateblue);
 }
 
 .text-input {
@@ -479,12 +492,12 @@ body {
   border: none;
   padding: 0.75rem 1rem;
   font-size: 1rem;
-  color: var(--foreground);
+  color: var(--eggshell);
   outline: none;
 }
 
 .text-input::placeholder {
-  color: var(--text-muted);
+  color: var(--denim);
 }
 
 .submit-button {
@@ -492,8 +505,8 @@ body {
   height: 48px;
   border-radius: 12px;
   border: none;
-  background: var(--gradient-1);
-  color: white;
+  background: var(--gradient-primary);
+  color: var(--eggshell);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -519,7 +532,7 @@ body {
   width: 20px;
   height: 20px;
   border: 2px solid transparent;
-  border-top-color: white;
+  border-top-color: var(--eggshell);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -534,7 +547,7 @@ body {
 .error-message {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 1rem;
   margin-bottom: 1rem;
   color: var(--error);
@@ -546,7 +559,7 @@ body {
 .result-card {
   background: var(--surface-light);
   border: 1px solid var(--surface-border);
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 1.5rem;
   margin-bottom: 1rem;
   animation: slideUp 0.3s ease;
@@ -557,7 +570,6 @@ body {
     opacity: 0;
     transform: translateY(10px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
@@ -574,12 +586,12 @@ body {
 .result-icon {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
-  background: var(--gradient-1);
+  border-radius: 14px;
+  background: var(--gradient-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--eggshell);
 }
 
 .result-icon svg {
@@ -592,6 +604,7 @@ body {
   font-weight: 600;
   margin: 0;
   text-transform: capitalize;
+  color: var(--eggshell);
 }
 
 .confidence {
@@ -613,17 +626,17 @@ body {
 
 .detail-row .label {
   font-size: 0.875rem;
-  color: var(--text-muted);
+  color: var(--denim);
   min-width: 80px;
 }
 
 .detail-row .value {
   font-size: 0.875rem;
-  color: var(--foreground);
+  color: var(--eggshell);
 }
 
 .detail-row.direction .value {
-  color: var(--secondary);
+  color: var(--denim);
   font-weight: 500;
 }
 
@@ -636,8 +649,8 @@ body {
   padding: 0.75rem;
   background: var(--surface);
   border: 1px solid var(--surface-border);
-  border-radius: 12px;
-  color: var(--foreground);
+  border-radius: 14px;
+  color: var(--eggshell);
   font-size: 0.875rem;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -645,7 +658,7 @@ body {
 
 .repeat-button:hover:not(:disabled) {
   background: var(--surface-light);
-  border-color: var(--primary);
+  border-color: var(--slateblue);
 }
 
 .repeat-button:disabled {
@@ -662,7 +675,7 @@ body {
 .no-result {
   text-align: center;
   padding: 1.5rem;
-  color: var(--text-muted);
+  color: var(--denim);
 }
 
 .no-result-icon {
@@ -696,7 +709,7 @@ body {
   padding: 0.75rem 1.5rem;
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 12px;
+  border-radius: 14px;
   color: var(--error);
   font-size: 0.875rem;
   cursor: pointer;
@@ -721,7 +734,7 @@ body {
   font-size: 1rem;
   font-weight: 600;
   margin: 0 0 1rem;
-  color: var(--text-muted);
+  color: var(--denim);
 }
 
 .action-grid {
@@ -744,14 +757,14 @@ body {
   padding: 1rem 0.5rem;
   background: var(--surface);
   border: 1px solid var(--surface-border);
-  border-radius: 16px;
+  border-radius: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .action-button:hover {
   background: var(--surface-light);
-  border-color: var(--primary);
+  border-color: var(--slateblue);
   transform: translateY(-2px);
 }
 
@@ -761,7 +774,7 @@ body {
 
 .action-label {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--denim);
   white-space: nowrap;
 }
 
@@ -774,7 +787,7 @@ body {
   font-size: 1rem;
   font-weight: 600;
   margin: 0 0 1rem;
-  color: var(--text-muted);
+  color: var(--denim);
 }
 
 .activity-list {
@@ -790,7 +803,7 @@ body {
   padding: 1rem;
   background: var(--surface);
   border: 1px solid var(--surface-border);
-  border-radius: 12px;
+  border-radius: 14px;
 }
 
 .activity-icon {
@@ -806,11 +819,12 @@ body {
 .activity-name {
   font-size: 0.875rem;
   font-weight: 500;
+  color: var(--eggshell);
 }
 
 .activity-time {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--denim);
 }
 
 .activity-status {
@@ -827,7 +841,18 @@ body {
   z-index: 1;
   text-align: center;
   padding: 2rem;
-  color: var(--text-muted);
+  color: var(--denim);
   font-size: 0.875rem;
   border-top: 1px solid var(--surface-border);
+}
+
+/* Accessibility - Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

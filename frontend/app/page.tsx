@@ -1,100 +1,108 @@
 "use client";
 
-import { VoiceInterface } from "./components";
+import { useCallback } from "react";
+import Link from "next/link";
+import { Brain } from "lucide-react";
+import {
+  HeroSection,
+  HowItWorksSection,
+  PreviewSection,
+  TrustSection,
+  TechStrip,
+  FinalCTA,
+} from "./components/landing";
 
-export default function Home() {
+export default function LandingPage() {
+  const handleWatchHowItWorks = useCallback(() => {
+    const element = document.getElementById("how-it-works");
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+  }, []);
+
   return (
-    <div className="app-container">
-      {/* Animated Background */}
+    <div className="min-h-screen bg-ink">
+      {/* Background effects */}
       <div className="background-gradient" />
+      <div className="background-noise" />
       <div className="background-orbs">
         <div className="orb orb-1" />
         <div className="orb orb-2" />
         <div className="orb orb-3" />
       </div>
 
-      {/* Main Content */}
-      <main className="main-content">
-        {/* Header */}
-        <header className="header">
-          <div className="logo">
-            <div className="logo-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                <circle cx="12" cy="9" r="2.5" />
-              </svg>
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-ink/80 backdrop-blur-md border-b border-slateblue/20">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-slateblue to-denim flex items-center justify-center">
+              <Brain className="h-6 w-6 text-eggshell" />
             </div>
-            <div className="logo-text">
-              <h1>Reality Memory</h1>
-              <p>Spatial Memory System</p>
-            </div>
+            <span className="text-lg font-semibold text-eggshell">
+              Reality Memory
+            </span>
+          </Link>
+
+          <div className="hidden sm:flex items-center gap-6">
+            <button
+              onClick={handleWatchHowItWorks}
+              className="text-sm text-denim hover:text-eggshell transition-colors"
+            >
+              How It Works
+            </button>
+            <Link
+              href="/app"
+              className="text-sm px-4 py-2 rounded-[10px] bg-slateblue text-eggshell hover:bg-slateblue/80 transition-colors"
+            >
+              Launch Demo
+            </Link>
           </div>
-          <nav className="nav-tabs">
-            <button className="nav-tab active">Recall</button>
-            <button className="nav-tab">Map</button>
-            <button className="nav-tab">Objects</button>
-          </nav>
-        </header>
+        </div>
+      </nav>
 
-        {/* Hero Section */}
-        <section className="hero">
-          <h2>Find anything you&apos;ve lost</h2>
-          <p>
-            Ask me where you left your belongings. I remember where everything
-            was last seen and will guide you back to it.
-          </p>
-        </section>
-
-        {/* Voice Interface */}
-        <VoiceInterface />
-
-        {/* Quick Actions */}
-        <section className="quick-actions">
-          <h3>Quick Search</h3>
-          <div className="action-grid">
-            {[
-              { icon: "💧", label: "Water Bottle" },
-              { icon: "🔑", label: "Keys" },
-              { icon: "🎒", label: "Backpack" },
-              { icon: "💻", label: "Laptop" },
-              { icon: "📱", label: "Phone" },
-              { icon: "👓", label: "Glasses" },
-            ].map((item) => (
-              <button key={item.label} className="action-button">
-                <span className="action-icon">{item.icon}</span>
-                <span className="action-label">{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        {/* Recent Activity */}
-        <section className="recent-activity">
-          <h3>Recent Searches</h3>
-          <div className="activity-list">
-            <div className="activity-item">
-              <span className="activity-icon">🔑</span>
-              <div className="activity-details">
-                <span className="activity-name">Keys</span>
-                <span className="activity-time">Found • 5 min ago</span>
-              </div>
-              <span className="activity-status found">✓</span>
-            </div>
-            <div className="activity-item">
-              <span className="activity-icon">💧</span>
-              <div className="activity-details">
-                <span className="activity-name">Water Bottle</span>
-                <span className="activity-time">Located • 1 hour ago</span>
-              </div>
-              <span className="activity-status found">✓</span>
-            </div>
-          </div>
-        </section>
+      {/* Main content */}
+      <main className="relative z-10">
+        <HeroSection onWatchHowItWorks={handleWatchHowItWorks} />
+        <HowItWorksSection />
+        <PreviewSection />
+        <TrustSection />
+        <TechStrip />
+        <FinalCTA />
       </main>
 
       {/* Footer */}
-      <footer className="footer">
-        <p>Reality Memory • Built with ❤️ at SandHacks 2025</p>
+      <footer className="relative z-10 border-t border-slateblue/20 bg-space/30">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-[8px] bg-gradient-to-br from-slateblue to-denim flex items-center justify-center">
+                <Brain className="h-4 w-4 text-eggshell" />
+              </div>
+              <span className="text-sm text-eggshell">Reality Memory</span>
+            </div>
+
+            <p className="text-sm text-denim text-center">
+              Built with love at SandHacks 2025
+            </p>
+
+            <div className="flex items-center gap-4">
+              <Link
+                href="/app"
+                className="text-sm text-denim hover:text-eggshell transition-colors"
+              >
+                Demo
+              </Link>
+              <a
+                href="https://github.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-denim hover:text-eggshell transition-colors"
+              >
+                GitHub
+              </a>
+            </div>
+          </div>
+        </div>
       </footer>
     </div>
   );
