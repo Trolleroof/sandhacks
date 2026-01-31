@@ -1,0 +1,21 @@
+cloud_web_bridge_node:
+  ros__parameters:
+    # --------------- filtering (all disabled — pure pass-through) ---------------
+    enable_voxel:       false
+    enable_passthrough: false
+    enable_outlier:     false
+
+    # --------------- rate limiting -----------------------------------------------
+    publish_rate_hz:      2.0   # cloud + pose publish rate (Hz)
+    path_publish_rate_hz: 1.0   # path publish rate, max 1 Hz
+
+    # --------------- voxel grid (active when enable_voxel: true) -----------------
+    voxel_size: 0.05            # metres
+
+    # --------------- passthrough Z-range (active when enable_passthrough: true) --
+    passthrough_min_z: -1.0     # metres
+    passthrough_max_z:  3.0     # metres
+
+    # --------------- statistical outlier removal (active when enable_outlier: true)
+    outlier_mean_k:          50
+    outlier_stddev_thresh:  1.0
