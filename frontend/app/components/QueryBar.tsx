@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Mic, MicOff, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,12 @@ const exampleQueries = ["water bottle", "keys", "backpack", "laptop", "phone"];
 
 export function QueryBar({ onSearch, isSearching = false, className }: QueryBarProps) {
   const [query, setQuery] = useState("");
+  const [hasMounted, setHasMounted] = useState(false);
+
+  // Avoid hydration mismatch by waiting for mount
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   const {
     isListening,
@@ -41,6 +47,9 @@ export function QueryBar({ onSearch, isSearching = false, className }: QueryBarP
       }
     },
   });
+
+  // Use consistent values until mounted to avoid hydration mismatch
+  const isVoiceAvailable = hasMounted && sttSupported;
 
   const handleMicClick = useCallback(() => {
     if (isListening) {
@@ -96,11 +105,11 @@ export function QueryBar({ onSearch, isSearching = false, className }: QueryBarP
           variant={isListening ? "default" : "outline"}
           size="icon"
           onClick={handleMicClick}
-          disabled={!sttSupported || isSearching}
+          disabled={!isVoiceAvailable || isSearching}
           className={cn(
             isListening && "bg-slateblue animate-pulse"
           )}
-          title={sttSupported ? (isListening ? "Stop listening" : "Start voice input") : "Voice not supported"}
+          title={isVoiceAvailable ? (isListening ? "Stop listening" : "Start voice input") : "Loading..."}
         >
           {isListening ? (
             <MicOff className="h-4 w-4" />

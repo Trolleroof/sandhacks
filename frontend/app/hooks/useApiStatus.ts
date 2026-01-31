@@ -30,25 +30,23 @@ export function useApiStatus(options: UseApiStatusOptions = {}) {
     try {
       const isHealthy = await api.checkHealth();
       const newStatus: ConnectionStatus = isHealthy ? "connected" : "offline";
-
-      setStatus((prevStatus) => {
-        if (prevStatus !== newStatus) {
-          onStatusChange?.(newStatus);
-        }
-        return newStatus;
-      });
+      setStatus(newStatus);
     } catch {
-      setStatus((prevStatus) => {
-        if (prevStatus !== "offline") {
-          onStatusChange?.("offline");
-        }
-        return "offline";
-      });
+      setStatus("offline");
     } finally {
       setIsChecking(false);
       setLastChecked(new Date());
     }
-  }, [onStatusChange]);
+  }, []);
+
+  // Call onStatusChange when status changes (via useEffect, not during render)
+  const prevStatusRef = useRef<ConnectionStatus>(status);
+  useEffect(() => {
+    if (prevStatusRef.current !== status) {
+      onStatusChange?.(status);
+      prevStatusRef.current = status;
+    }
+  }, [status, onStatusChange]);
 
   const startPolling = useCallback(() => {
     if (intervalRef.current) return;
