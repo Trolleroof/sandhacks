@@ -48,6 +48,79 @@ const DEFAULT_STATE: RosbridgeSpatialState = {
   error: null,
 };
 
+// Rosbridge delivers std_msgs/String as { data: "<json>" }.
+// Peel that wrapper so downstream parsers see the actual payload.
+function unwrapStringMsg(msg: unknown): unknown {
+  if (
+    msg &&
+    typeof msg === "object" &&
+    "data" in msg &&
+    typeof (msg as { data: unknown }).data === "string"
+  ) {
+    try {
+      return JSON.parse((msg as { data: string }).data);
+    } catch {
+      return msg;
+    }
+  }
+  return msg;
+}
+
+function base64Decode(str: string): Uint8Array {
+  const binary = atob(str);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+interface PointCloudMsg {
+  point_step: number;
+  fields: { name: string; offset: number; datatype: number }[];
+  points_b64: string;
+}
+
+function isPointCloudMsg(value: unknown): value is PointCloudMsg {
+  if (!value || typeof value !== "object") return false;
+  const obj = value as Record<string, unknown>;
+  return (
+    typeof obj.point_step === "number" &&
+    Array.isArray(obj.fields) &&
+    typeof obj.points_b64 === "string"
+  );
+}
+
+// Decode the base64 raw buffer using the field descriptors from the
+// PointCloud2 envelope.  Supports FLOAT32 (datatype 7) and FLOAT64 (8).
+function decodePointCloud(msg: PointCloudMsg): VslamVector3[] {
+  const buffer = base64Decode(msg.points_b64);
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+
+  const xField = msg.fields.find((f) => f.name === "x");
+  const yField = msg.fields.find((f) => f.name === "y");
+  const zField = msg.fields.find((f) => f.name === "z");
+  if (!xField || !yField || !zField) return [];
+
+  const numPoints = Math.floor(buffer.length / msg.point_step);
+  const points: VslamVector3[] = new Array(numPoints);
+  // PointField datatype 7 = FLOAT32, 8 = FLOAT64
+  const isDouble = xField.datatype === 8;
+  const read = isDouble
+    ? (offset: number) => view.getFloat64(offset, true)
+    : (offset: number) => view.getFloat32(offset, true);
+
+  for (let i = 0; i < numPoints; i++) {
+    const base = i * msg.point_step;
+    points[i] = {
+      x: read(base + xField.offset),
+      y: read(base + yField.offset),
+      z: read(base + zField.offset),
+    };
+  }
+  return points;
+}
+
 function isVector3(value: unknown): value is VslamVector3 {
   if (!value || typeof value !== "object") return false;
   const point = value as VslamVector3;
@@ -76,6 +149,9 @@ function parsePoints(payload: unknown): VslamVector3[] {
 
   if (typeof payload === "object") {
     const record = payload as Record<string, unknown>;
+    if (Array.isArray(record.poses)) {
+      return parsePoints(record.poses);
+    }
     if (Array.isArray(record.points)) {
       return parsePoints(record.points);
     }
@@ -149,22 +225,27 @@ export function useRosbridgeSpatial({ url, enabled = true }: RosbridgeSpatialOpt
       }
       if (!parsed?.topic) return;
 
+      // std_msgs/String arrives as { data: "<json>" } — unwrap it.
+      const payload = unwrapStringMsg(parsed.msg);
+
       if (parsed.topic === "/web/pose") {
-        const pose = parsePose(parsed.msg);
+        const pose = parsePose(payload);
         if (pose) {
           setState((prev) => ({ ...prev, pose }));
         }
       }
 
       if (parsed.topic === "/web/pointcloud") {
-        const points = parsePoints(parsed.msg);
-        if (points.length > 0) {
-          setState((prev) => ({ ...prev, pointCloud: points }));
+        if (isPointCloudMsg(payload)) {
+          const points = decodePointCloud(payload);
+          if (points.length > 0) {
+            setState((prev) => ({ ...prev, pointCloud: points }));
+          }
         }
       }
 
       if (parsed.topic === "/web/path") {
-        const points = parsePoints(parsed.msg);
+        const points = parsePoints(payload);
         if (points.length > 0) {
           setState((prev) => ({ ...prev, path: points }));
         }

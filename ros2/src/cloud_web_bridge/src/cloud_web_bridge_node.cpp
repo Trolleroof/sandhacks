@@ -144,9 +144,9 @@ private:
   using Clock  = std::chrono::steady_clock;
   using TimePt = Clock::time_point;
 
-  TimePt last_cloud_pub_ = TimePt::min();
-  TimePt last_pose_pub_  = TimePt::min();
-  TimePt last_path_pub_  = TimePt::min();
+  TimePt last_cloud_pub_ {};
+  TimePt last_pose_pub_  {};
+  TimePt last_path_pub_  {};
   size_t last_path_len_  = 0;
 
   // --- ROS handles ----------------------------------------------------------
