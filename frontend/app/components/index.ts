@@ -13,3 +13,6 @@ export { GuidancePanel } from "./GuidancePanel";
 export { DebugDrawer } from "./DebugDrawer";
 export { CameraStreamPanel } from "./CameraStreamPanel";
 export { TopNav } from "./TopNav";
+export { HelpDialog } from "./HelpDialog";
+export { SettingsDialog } from "./SettingsDialog";
+

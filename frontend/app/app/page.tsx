@@ -225,8 +225,15 @@ function AppContent() {
         mappingState={state.mappingState}
         debug={debugData}
         isDebugOpen={state.isDebugOpen}
+        useMockData={state.useMockData}
+        showBoundingBoxes={state.showBoundingBoxes}
         onModeChange={setMode}
         onDebugOpenChange={setDebugOpen}
+        onUseMockDataChange={(checked) => {
+          setUseMockData(checked);
+          if (checked) setMockMode();
+        }}
+        onShowBoundingBoxesChange={setShowBoundingBoxes}
         onReset={reset}
       />
 

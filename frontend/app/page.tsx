@@ -82,7 +82,7 @@ export default function LandingPage() {
             </div>
 
             <p className="text-sm text-denim text-center">
-              Built with love at SandHacks 2025
+              Built with love at SanD Hacks 2025
             </p>
 
             <div className="flex items-center gap-4">

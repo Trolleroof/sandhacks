@@ -125,13 +125,6 @@ export function VoiceInterface() {
         }
     }, [transcript]);
 
-    // Process query when listening stops
-    useEffect(() => {
-        if (!isListening && transcript) {
-            handleSearch(transcript);
-        }
-    }, [isListening, transcript, handleSearch]);
-
     const handleSearch = useCallback(
         async (searchQuery: string) => {
             if (!searchQuery.trim()) return;
@@ -187,6 +180,13 @@ export function VoiceInterface() {
         },
         [speak]
     );
+
+    // Process query when listening stops
+    useEffect(() => {
+        if (!isListening && transcript) {
+            handleSearch(transcript);
+        }
+    }, [isListening, transcript, handleSearch]);
 
     const handleVoiceButtonClick = () => {
         if (!sttSupported) {

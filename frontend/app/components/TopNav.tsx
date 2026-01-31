@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Brain, Settings, HelpCircle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,8 @@ import { cn } from "@/lib/utils";
 import { StatusPill } from "./StatusPill";
 import { ModeToggle } from "./ModeToggle";
 import { DebugDrawer } from "./DebugDrawer";
+import { HelpDialog } from "./HelpDialog";
+import { SettingsDialog } from "./SettingsDialog";
 import type { ConnectionStatus, AppMode, MappingState } from "../store/appStore";
 import type { DebugData } from "../lib/mockData";
 
@@ -22,8 +25,12 @@ interface TopNavProps {
   mappingState: MappingState;
   debug: DebugData;
   isDebugOpen: boolean;
+  useMockData: boolean;
+  showBoundingBoxes: boolean;
   onModeChange: (mode: AppMode) => void;
   onDebugOpenChange: (open: boolean) => void;
+  onUseMockDataChange: (value: boolean) => void;
+  onShowBoundingBoxesChange: (value: boolean) => void;
   onReset: () => void;
   className?: string;
 }
@@ -34,11 +41,18 @@ export function TopNav({
   mappingState,
   debug,
   isDebugOpen,
+  useMockData,
+  showBoundingBoxes,
   onModeChange,
   onDebugOpenChange,
+  onUseMockDataChange,
+  onShowBoundingBoxesChange,
   onReset,
   className,
 }: TopNavProps) {
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
   return (
     <TooltipProvider>
       <nav
@@ -76,7 +90,12 @@ export function TopNav({
           {/* Settings */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="hidden sm:flex">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden sm:flex"
+                onClick={() => setIsSettingsOpen(true)}
+              >
                 <Settings className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -86,7 +105,11 @@ export function TopNav({
           {/* Help */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsHelpOpen(true)}
+              >
                 <HelpCircle className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -114,8 +137,21 @@ export function TopNav({
           />
         </div>
       </nav>
+
+      {/* Dialogs */}
+      <HelpDialog open={isHelpOpen} onOpenChange={setIsHelpOpen} />
+      <SettingsDialog
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+        useMockData={useMockData}
+        onUseMockDataChange={onUseMockDataChange}
+        showBoundingBoxes={showBoundingBoxes}
+        onShowBoundingBoxesChange={onShowBoundingBoxesChange}
+        onReset={onReset}
+      />
     </TooltipProvider>
   );
 }
 
 export default TopNav;
+
