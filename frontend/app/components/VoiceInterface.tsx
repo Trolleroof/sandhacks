@@ -133,28 +133,57 @@ export function VoiceInterface() {
     }, [isListening, transcript]);
 
     const handleSearch = useCallback(
-        (searchQuery: string) => {
+        async (searchQuery: string) => {
             if (!searchQuery.trim()) return;
 
             setIsSearching(true);
             setResult(null);
 
-            // Simulate API delay
-            setTimeout(() => {
-                const found = findObject(searchQuery);
-                setResult(found);
-                setIsSearching(false);
+            // Find object in mock database
+            const found = findObject(searchQuery);
+            setResult(found);
 
-                // Provide voice guidance
-                if (found) {
-                    const guidance = `Found your ${found.name}! It was last seen ${found.lastSeen}, about ${found.distance} away, ${found.direction}. I'm ${Math.round(found.confidence * 100)}% confident about this location.`;
-                    speak(guidance);
+            try {
+                // Call Cerebras API to generate intelligent response
+                const response = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        query: searchQuery,
+                        objectData: found ? {
+                            name: found.name,
+                            lastSeen: found.lastSeen,
+                            distance: found.distance,
+                            direction: found.direction,
+                            confidence: found.confidence,
+                        } : null,
+                    }),
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    speak(data.response);
                 } else {
-                    speak(
-                        `Sorry, I couldn't find that object in my memory. Try asking about a water bottle, keys, backpack, laptop, or phone.`
-                    );
+                    // Fallback to template if Cerebras fails
+                    if (found) {
+                        speak(`Found your ${found.name}! It's ${found.distance} away, ${found.direction}.`);
+                    } else {
+                        speak("I couldn't find that object. Try asking about something else.");
+                    }
                 }
-            }, 500);
+            } catch (error) {
+                console.error("Chat API error:", error);
+                // Fallback to template
+                if (found) {
+                    speak(`Found your ${found.name}! It's ${found.distance} away, ${found.direction}.`);
+                } else {
+                    speak("I couldn't find that object. Try asking about something else.");
+                }
+            } finally {
+                setIsSearching(false);
+            }
         },
         [speak]
     );
@@ -201,7 +230,11 @@ export function VoiceInterface() {
                     </div>
                     <div className="indicator supported">
                         <span className="indicator-dot" />
-                        <span>ElevenLabs Voice</span>
+                        <span>Cerebras LLM</span>
+                    </div>
+                    <div className="indicator supported">
+                        <span className="indicator-dot" />
+                        <span>ElevenLabs TTS</span>
                     </div>
                 </div>
                 {ttsError && (
