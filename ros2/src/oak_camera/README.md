@@ -2,6 +2,8 @@
 
 ROS2 package for OAK-D camera integration with DepthAI library and real-time image classification using MobileNet-SSD.
 
+**Key Enhancement**: This package builds upon the base `luxonis_camera` package from main branch, adding object detection capabilities while maintaining robust device discovery for bootloader devices, PoE/TCP cameras, and multiple device scenarios.
+
 ## Features
 
 - **Real-time RGB Camera Stream**: Publishes RGB images at configurable FPS
@@ -98,12 +100,20 @@ Edit `config/camera_params.yaml` to modify default parameters:
 ```yaml
 oak_camera_node:
   ros__parameters:
+    # Camera settings
     camera_fps: 30                    # Camera frame rate
     preview_width: 640                # Image width
     preview_height: 480               # Image height
+    frame_id: 'oak_rgb_camera_optical_frame'  # ROS frame ID
+
+    # Neural network settings
     enable_classification: true       # Enable/disable object detection
-    confidence_threshold: 0.5         # Minimum detection confidence
+    confidence_threshold: 0.5         # Minimum detection confidence (0.0-1.0)
     model_name: 'mobilenet-ssd'       # Neural network model name
+
+    # Device discovery settings
+    device_discovery_attempts: 5      # Number of device scan attempts
+    device_discovery_pause: 2.0       # Seconds to wait between scan attempts
 ```
 
 ## Visualization
@@ -171,12 +181,31 @@ If experiencing low frame rates:
 3. Disable classification temporarily: `enable_classification: false`
 4. Check CPU usage and system resources
 
+## Comparison with `luxonis_camera`
+
+| Feature | luxonis_camera | oak_camera |
+|---------|---|---|
+| Basic RGB Publishing | ✓ | ✓ |
+| Object Detection | ✗ | ✓ |
+| Bounding Boxes | ✗ | ✓ |
+| Annotated Images | ✗ | ✓ |
+| Robust Device Discovery | ✓ | ✓ (inherited) |
+| Bootloader Support | ✓ | ✓ (inherited) |
+| PoE/TCP Support | ✓ | ✓ (inherited) |
+| Auto-Reconnect | ✓ | ✓ (enhanced) |
+
+**Use `luxonis_camera` if**: You only need raw camera frames and want minimal dependencies.
+
+**Use `oak_camera` if**: You need object detection, bounding boxes, and classification results.
+
+Both packages can run simultaneously on different topics if needed.
+
 ## Integration with Existing System
 
 To integrate with your existing `cloud_web_bridge` node:
 
 1. The camera publishes images to `/oak/rgb/image_raw`
-2. Detections are published to `/oak/nn/detections`
+2. Detections are published to `/oak/nn/detections` (when enabled)
 3. You can remap these topics in your launch files
 4. Subscribe to these topics from other nodes for further processing
 
@@ -189,13 +218,37 @@ self.image_sub = self.create_subscription(
     self.image_callback,
     10
 )
+
+# Subscribe to detections if using oak_camera
+from vision_msgs.msg import Detection2DArray
+self.det_sub = self.create_subscription(
+    Detection2DArray,
+    '/oak/nn/detections',
+    self.detection_callback,
+    10
+)
 ```
 
 ## Architecture
 
-The camera node follows the DepthAI pipeline pattern:
+The camera node follows the DepthAI pipeline pattern with robust device discovery:
 
 ```
+Device Discovery (Bootloader + Application scanning)
+         │
+         ├─► Bootloader Scan
+         ├─► Application Scan
+         └─► PoE/TCP Device Discovery
+                    │
+                    v
+            [Connect to Device]
+                    │
+         ┌──────────┴──────────┐
+         │                     │
+         v                     v
+    Pipeline Setup         Error Handling
+         │                     │
+         v                     v
 ┌─────────────────┐
 │  ColorCamera    │ (RGB at 640x480@30fps)
 └────────┬────────┘
@@ -204,11 +257,11 @@ The camera node follows the DepthAI pipeline pattern:
          │                      │
          v                      v
 ┌─────────────────┐    ┌──────────────────┐
-│  XLinkOut (rgb) │    │  MobileNetDetect │
+│  XLinkOut (rgb) │    │  MobileNetDetect │ (optional)
 └─────────────────┘    └────────┬─────────┘
-                                │
-                    ┌───────────┴──────────┐
-                    │                      │
+         │                      │
+         v          ┌───────────┴──────────┐
+    [RGB Stream]    │                      │
                     v                      v
           ┌──────────────────┐   ┌──────────────────┐
           │ XLinkOut (detect)│   │ XLinkOut (pass)  │
@@ -216,6 +269,29 @@ The camera node follows the DepthAI pipeline pattern:
                     │                      │
                     v                      v
               [Detections]        [Synced Frames]
+                 +
+          [Annotations]
+```
+
+## Robust Device Discovery
+
+This node implements the same robust device discovery patterns as `luxonis_camera`:
+
+1. **Bootloader Scanning**: Detects devices in bootloader state (common on startup)
+2. **Application Scanning**: Finds devices already running DepthAI applications
+3. **PoE/TCP Support**: Connects to remote cameras via network (configurable via `TARGET_DEVICE_IP` env var)
+4. **Automatic Retry**: Configurable retry attempts with pause intervals
+5. **Device State Tracking**: Monitors pipeline status and auto-reconnects if needed
+
+### Device Discovery Configuration
+
+```bash
+# Use custom device IP (PoE/TCP)
+export TARGET_DEVICE_IP="192.168.1.100"
+ros2 launch oak_camera camera.launch.py
+
+# Or configure via ROS parameters
+ros2 run oak_camera camera_node --ros-args -p device_discovery_attempts:=10 -p device_discovery_pause:=1.0
 ```
 
 ## Performance

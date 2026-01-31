@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """
-OAK-D Camera Node with DepthAI Integration
+OAK-D Camera Node with DepthAI Integration and Image Classification
 
 This node connects to an OAK-D camera using the DepthAI library and publishes:
 - RGB camera images
-- Image classification results using MobileNet-SSD
-- Detection bounding boxes
+- Image classification results using MobileNet-SSD (optional)
+- Detection bounding boxes with confidence scores
 
 Topics published:
 - /oak/rgb/image_raw (sensor_msgs/Image): RGB camera feed
 - /oak/rgb/camera_info (sensor_msgs/CameraInfo): Camera information
-- /oak/nn/detections (vision_msgs/Detection2DArray): Object detections
-- /oak/nn/image (sensor_msgs/Image): Annotated image with detections
+- /oak/nn/detections (vision_msgs/Detection2DArray): Object detections (when enabled)
+- /oak/nn/image (sensor_msgs/Image): Annotated image with detections (when enabled)
+
+Integrates robust device discovery from Luxonis DepthAI with enhanced classification pipeline.
 """
 
 import rclpy
@@ -24,11 +26,13 @@ import cv2
 from cv_bridge import CvBridge
 import depthai as dai
 import numpy as np
-from typing import Optional
+from typing import Optional, Tuple
+import time
+import os
 
 
 class OAKCameraNode(Node):
-    """ROS2 node for OAK-D camera with image classification"""
+    """ROS2 node for OAK-D camera with optional image classification"""
 
     def __init__(self):
         super().__init__('oak_camera_node')
@@ -40,6 +44,9 @@ class OAKCameraNode(Node):
         self.declare_parameter('enable_classification', True)
         self.declare_parameter('confidence_threshold', 0.5)
         self.declare_parameter('model_name', 'mobilenet-ssd')
+        self.declare_parameter('frame_id', 'oak_rgb_camera_optical_frame')
+        self.declare_parameter('device_discovery_attempts', 5)
+        self.declare_parameter('device_discovery_pause', 2.0)
 
         # Get parameters
         self.camera_fps = self.get_parameter('camera_fps').value
@@ -48,6 +55,9 @@ class OAKCameraNode(Node):
         self.enable_classification = self.get_parameter('enable_classification').value
         self.confidence_threshold = self.get_parameter('confidence_threshold').value
         self.model_name = self.get_parameter('model_name').value
+        self.frame_id = self.get_parameter('frame_id').value
+        self.device_discovery_attempts = self.get_parameter('device_discovery_attempts').value
+        self.device_discovery_pause = self.get_parameter('device_discovery_pause').value
 
         # Publishers
         self.image_pub = self.create_publisher(Image, '/oak/rgb/image_raw', 10)
@@ -65,8 +75,14 @@ class OAKCameraNode(Node):
             "sheep", "sofa", "train", "tvmonitor"
         ]
 
-        # Initialize camera
+        # Camera state
         self.device: Optional[dai.Device] = None
+        self.q_rgb = None
+        self.q_detections = None
+        self.q_passthrough = None
+        self.pipeline_running = False
+
+        # Try initial connection
         self.setup_camera()
 
         # Timer for publishing
@@ -77,10 +93,72 @@ class OAKCameraNode(Node):
         self.get_logger().info(f'  Resolution: {self.preview_width}x{self.preview_height}')
         self.get_logger().info(f'  Classification enabled: {self.enable_classification}')
         self.get_logger().info(f'  Model: {self.model_name}')
+        self.get_logger().info(f'  Frame ID: {self.frame_id}')
+
+    def wait_for_device(self) -> Optional[dai.Device]:
+        """
+        Find and connect to the first available DepthAI device.
+
+        Uses robust device discovery with bootloader and application scanning,
+        supporting PoE/TCP cameras and devices in bootloader state.
+        """
+        self.get_logger().info('Searching for devices...')
+
+        for attempt in range(1, self.device_discovery_attempts + 1):
+            try:
+                candidates = []
+
+                # Scan for bootloader devices
+                try:
+                    bl_devices = dai.DeviceBootloader.getAllAvailableDevices()
+                    self.get_logger().info(f'[scan {attempt}] bootloader sees {len(bl_devices)} device(s)')
+                    candidates.extend(bl_devices)
+                except Exception as e:
+                    self.get_logger().debug(f'[scan {attempt}] bootloader scan: {e}')
+
+                # Scan for application devices
+                try:
+                    app_devices = dai.Device.getAllAvailableDevices()
+                    self.get_logger().info(f'[scan {attempt}] application sees {len(app_devices)} device(s)')
+                    candidates.extend(app_devices)
+                except Exception as e:
+                    self.get_logger().debug(f'[scan {attempt}] application scan: {e}')
+
+                # Try to connect to each candidate
+                for info in candidates:
+                    try:
+                        name = getattr(info, 'name', None) or '?'
+                        state = str(info.state).split('X_LINK_')[-1] if hasattr(info, 'state') else 'UNKNOWN'
+                        self.get_logger().info(f'  Attempting to connect to {name} (state={state})')
+
+                        device = dai.Device(info)
+                        mxid = device.getMxId()
+                        platform = device.getPlatformAsString()
+                        self.get_logger().info(f'Connected to {name} | mxid={mxid} platform={platform}')
+                        return device
+                    except Exception as e:
+                        self.get_logger().debug(f'    Connection failed: {e}')
+                        continue
+
+            except Exception as e:
+                self.get_logger().warn(f'Scan error (attempt {attempt}): {e}')
+
+            if attempt < self.device_discovery_attempts:
+                self.get_logger().info(f'Waiting {self.device_discovery_pause:.1f}s before retry...')
+                time.sleep(self.device_discovery_pause)
+
+        self.get_logger().error('No devices found after maximum attempts')
+        return None
 
     def setup_camera(self):
         """Initialize the OAK camera and create the DepthAI pipeline"""
         try:
+            # Discover and connect to device
+            self.device = self.wait_for_device()
+            if not self.device:
+                self.get_logger().error('Cannot continue without camera device')
+                return
+
             # Create pipeline
             pipeline = dai.Pipeline()
 
@@ -100,23 +178,31 @@ class OAKCameraNode(Node):
                 # Create neural network node for object detection
                 detection_nn = pipeline.create(dai.node.MobileNetDetectionNetwork)
                 detection_nn.setConfidenceThreshold(self.confidence_threshold)
-                detection_nn.setBlobPath(self._get_model_path())
 
-                # Link camera to neural network
-                cam_rgb.preview.link(detection_nn.input)
+                model_path = self._get_model_path()
+                if model_path and os.path.exists(model_path):
+                    detection_nn.setBlobPath(model_path)
+                    self.get_logger().info(f'Using model: {model_path}')
+                else:
+                    self.get_logger().warn(f'Model not found at {model_path}, classification disabled')
+                    self.enable_classification = False
 
-                # Create XLink output for detections
-                xout_nn = pipeline.create(dai.node.XLinkOut)
-                xout_nn.setStreamName("detections")
-                detection_nn.out.link(xout_nn.input)
+                if self.enable_classification:
+                    # Link camera to neural network
+                    cam_rgb.preview.link(detection_nn.input)
 
-                # Create passthrough for synced frames
-                xout_passthrough = pipeline.create(dai.node.XLinkOut)
-                xout_passthrough.setStreamName("passthrough")
-                detection_nn.passthrough.link(xout_passthrough.input)
+                    # Create XLink output for detections
+                    xout_nn = pipeline.create(dai.node.XLinkOut)
+                    xout_nn.setStreamName("detections")
+                    detection_nn.out.link(xout_nn.input)
 
-            # Connect to device and start pipeline
-            self.device = dai.Device(pipeline)
+                    # Create passthrough for synced frames
+                    xout_passthrough = pipeline.create(dai.node.XLinkOut)
+                    xout_passthrough.setStreamName("passthrough")
+                    detection_nn.passthrough.link(xout_passthrough.input)
+
+            # Start pipeline
+            self.device.startPipeline(pipeline)
 
             # Get output queues
             self.q_rgb = self.device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
@@ -125,11 +211,12 @@ class OAKCameraNode(Node):
                 self.q_detections = self.device.getOutputQueue(name="detections", maxSize=4, blocking=False)
                 self.q_passthrough = self.device.getOutputQueue(name="passthrough", maxSize=4, blocking=False)
 
+            self.pipeline_running = True
             self.get_logger().info('Camera pipeline started successfully')
 
         except Exception as e:
             self.get_logger().error(f'Failed to initialize camera: {str(e)}')
-            raise
+            self.pipeline_running = False
 
     def _get_model_path(self) -> str:
         """Get the path to the neural network model blob"""
@@ -154,6 +241,13 @@ class OAKCameraNode(Node):
     def timer_callback(self):
         """Main callback to read camera frames and publish data"""
         try:
+            # Check if pipeline is running
+            if not self.pipeline_running or self.device is None:
+                if not self.device or not self.device.isPipelineRunning():
+                    self.get_logger().warn('Pipeline not running, attempting to restart...')
+                    self.setup_camera()
+                return
+
             # Get RGB frame
             in_rgb = self.q_rgb.tryGet()
             if in_rgb is None:
@@ -169,7 +263,7 @@ class OAKCameraNode(Node):
             self.publish_camera_info()
 
             # Process detections if enabled
-            if self.enable_classification:
+            if self.enable_classification and self.q_detections is not None:
                 in_det = self.q_detections.tryGet()
                 in_pass = self.q_passthrough.tryGet()
 
@@ -186,13 +280,14 @@ class OAKCameraNode(Node):
 
         except Exception as e:
             self.get_logger().error(f'Error in timer callback: {str(e)}')
+            self.pipeline_running = False
 
     def publish_image(self, frame: np.ndarray):
         """Publish raw RGB image"""
         try:
             msg = self.bridge.cv2_to_imgmsg(frame, encoding='rgb8')
             msg.header.stamp = self.get_clock().now().to_msg()
-            msg.header.frame_id = 'oak_rgb_camera_optical_frame'
+            msg.header.frame_id = self.frame_id
             self.image_pub.publish(msg)
         except Exception as e:
             self.get_logger().error(f'Failed to publish image: {str(e)}')
@@ -201,7 +296,7 @@ class OAKCameraNode(Node):
         """Publish camera calibration info"""
         msg = CameraInfo()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = 'oak_rgb_camera_optical_frame'
+        msg.header.frame_id = self.frame_id
         msg.width = self.preview_width
         msg.height = self.preview_height
         # Add calibration parameters if available
@@ -211,34 +306,33 @@ class OAKCameraNode(Node):
         """Publish object detections"""
         msg = Detection2DArray()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = 'oak_rgb_camera_optical_frame'
+        msg.header.frame_id = self.frame_id
 
         height, width = frame_shape[:2]
 
         for detection in detections:
             det_msg = Detection2D()
 
-            # Bounding box
-            det_msg.bbox.center.position.x = detection.xmin * width + (detection.xmax - detection.xmin) * width / 2
-            det_msg.bbox.center.position.y = detection.ymin * height + (detection.ymax - detection.ymin) * height / 2
-            det_msg.bbox.size_x = (detection.xmax - detection.xmin) * width
-            det_msg.bbox.size_y = (detection.ymax - detection.ymin) * height
+            # Bounding box (center + size format)
+            x_min = detection.xmin * width
+            y_min = detection.ymin * height
+            x_max = detection.xmax * width
+            y_max = detection.ymax * height
+
+            det_msg.bbox.center.position.x = (x_min + x_max) / 2
+            det_msg.bbox.center.position.y = (y_min + y_max) / 2
+            det_msg.bbox.size_x = x_max - x_min
+            det_msg.bbox.size_y = y_max - y_min
 
             # Classification result
             result = ObjectHypothesisWithPose()
-            result.hypothesis.class_id = str(detection.label)
-            result.hypothesis.score = detection.confidence
+            result.hypothesis.class_id = str(int(detection.label))
+            result.hypothesis.score = float(detection.confidence)
             det_msg.results.append(result)
 
             msg.detections.append(det_msg)
 
         self.detections_pub.publish(msg)
-
-        if len(detections) > 0:
-            self.get_logger().info(
-                f'Published {len(detections)} detections',
-                throttle_duration_sec=2.0
-            )
 
     def annotate_frame(self, frame: np.ndarray, detections) -> np.ndarray:
         """Draw bounding boxes and labels on frame"""
@@ -275,15 +369,19 @@ class OAKCameraNode(Node):
         try:
             msg = self.bridge.cv2_to_imgmsg(frame, encoding='rgb8')
             msg.header.stamp = self.get_clock().now().to_msg()
-            msg.header.frame_id = 'oak_rgb_camera_optical_frame'
+            msg.header.frame_id = self.frame_id
             self.annotated_image_pub.publish(msg)
         except Exception as e:
             self.get_logger().error(f'Failed to publish annotated image: {str(e)}')
 
     def destroy_node(self):
         """Cleanup when node is destroyed"""
+        self.pipeline_running = False
         if self.device is not None:
-            self.device.close()
+            try:
+                self.device.close()
+            except Exception as e:
+                self.get_logger().error(f'Error closing device: {e}')
         super().destroy_node()
 
 
