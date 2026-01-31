@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# AI assistant agent skills and config directories
+.agent/
+.agents/
+.claude/
+.codex/
+.cursor/
+.opencode/
