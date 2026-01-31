@@ -91,25 +91,26 @@ export function useSpeechRecognition(
     const [transcript, setTranscript] = useState("");
     const [interimTranscript, setInterimTranscript] = useState("");
     const [error, setError] = useState<string | null>(null);
-    const [isSupported, setIsSupported] = useState(false);
+
+    const isSupported =
+        typeof window !== "undefined" &&
+        !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
     const recognitionRef = useRef<SpeechRecognition | null>(null);
 
     // Check for browser support
     useEffect(() => {
-        if (typeof window !== "undefined") {
-            const SpeechRecognition =
-                window.SpeechRecognition || window.webkitSpeechRecognition;
-            setIsSupported(!!SpeechRecognition);
+        if (!isSupported) return;
 
-            if (SpeechRecognition) {
-                recognitionRef.current = new SpeechRecognition();
-                recognitionRef.current.continuous = continuous;
-                recognitionRef.current.interimResults = interimResults;
-                recognitionRef.current.lang = language;
-            }
-        }
-    }, [continuous, interimResults, language]);
+        const SpeechRecognition =
+            window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) return;
+
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = continuous;
+        recognitionRef.current.interimResults = interimResults;
+        recognitionRef.current.lang = language;
+    }, [isSupported, continuous, interimResults, language]);
 
     // Set up event handlers
     useEffect(() => {
