@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useMemo, useEffect } from "react";
+import { useRef, useState, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
     OrbitControls,
@@ -215,7 +215,6 @@ function Scene({
     selectedObjectId: string | null;
     onObjectClick: (id: string) => void;
 }) {
-    const pathRef = useRef<THREE.Line>(null);
     const pointPositions = useMemo(() => {
         if (!data.mapPoints || data.mapPoints.length === 0) return null;
         const positions = new Float32Array(data.mapPoints.length * 3);
@@ -238,10 +237,18 @@ function Scene({
         return positions;
     }, [data.path]);
 
-    useEffect(() => {
-        if (pathRef.current) {
-            pathRef.current.computeLineDistances();
-        }
+    const pathLineObject = useMemo(() => {
+        if (!pathPositions) return null;
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(pathPositions, 3));
+        const material = new THREE.LineDashedMaterial({
+            color: 0x7bdff2,
+            dashSize: 0.2,
+            gapSize: 0.12,
+        });
+        const line = new THREE.Line(geometry, material);
+        line.computeLineDistances();
+        return line;
     }, [pathPositions]);
 
     return (
@@ -283,6 +290,7 @@ function Scene({
                 <points>
                     <bufferGeometry>
                         <bufferAttribute
+                            args={[pointPositions, 3]}
                             attach="attributes-position"
                             array={pointPositions}
                             itemSize={3}
@@ -294,19 +302,7 @@ function Scene({
             )}
 
             {/* Guidance path */}
-            {pathPositions && (
-                <line ref={pathRef}>
-                    <bufferGeometry>
-                        <bufferAttribute
-                            attach="attributes-position"
-                            array={pathPositions}
-                            itemSize={3}
-                            count={pathPositions.length / 3}
-                        />
-                    </bufferGeometry>
-                    <lineDashedMaterial color="#7bdff2" dashSize={0.2} gapSize={0.12} />
-                </line>
-            )}
+            {pathLineObject && <primitive object={pathLineObject} />}
 
             {/* Camera controls */}
             <OrbitControls
