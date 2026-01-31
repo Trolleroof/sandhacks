@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useMemo } from "react";
+import { useRef, useState, useMemo, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
     OrbitControls,
@@ -30,6 +30,8 @@ export interface SpatialObject {
 export interface SpatialData {
     objects: SpatialObject[];
     cameraPosition: Position3D;
+    mapPoints?: Position3D[];
+    path?: Position3D[];
 }
 
 // Mock data for demonstration
@@ -72,6 +74,14 @@ export const mockSpatialData: SpatialData = {
         },
     ],
     cameraPosition: { x: 0, y: 1.5, z: 0 },
+    mapPoints: [
+        { x: 0.1, y: 0, z: 0.1 },
+        { x: 4.0, y: 0, z: 0.1 },
+        { x: 4.0, y: 0, z: 5.0 },
+        { x: 0.1, y: 0, z: 5.0 },
+        { x: 2.0, y: 0, z: 2.5 },
+        { x: 1.5, y: 0, z: 3.5 },
+    ],
 };
 
 // Object marker component
@@ -205,6 +215,35 @@ function Scene({
     selectedObjectId: string | null;
     onObjectClick: (id: string) => void;
 }) {
+    const pathRef = useRef<THREE.Line>(null);
+    const pointPositions = useMemo(() => {
+        if (!data.mapPoints || data.mapPoints.length === 0) return null;
+        const positions = new Float32Array(data.mapPoints.length * 3);
+        data.mapPoints.forEach((point, index) => {
+            positions[index * 3] = point.x;
+            positions[index * 3 + 1] = point.y;
+            positions[index * 3 + 2] = point.z;
+        });
+        return positions;
+    }, [data.mapPoints]);
+
+    const pathPositions = useMemo(() => {
+        if (!data.path || data.path.length < 2) return null;
+        const positions = new Float32Array(data.path.length * 3);
+        data.path.forEach((point, index) => {
+            positions[index * 3] = point.x;
+            positions[index * 3 + 1] = point.y;
+            positions[index * 3 + 2] = point.z;
+        });
+        return positions;
+    }, [data.path]);
+
+    useEffect(() => {
+        if (pathRef.current) {
+            pathRef.current.computeLineDistances();
+        }
+    }, [pathPositions]);
+
     return (
         <>
             {/* Lighting */}
@@ -238,6 +277,36 @@ function Scene({
                     onClick={() => onObjectClick(obj.id)}
                 />
             ))}
+
+            {/* Point cloud */}
+            {pointPositions && (
+                <points>
+                    <bufferGeometry>
+                        <bufferAttribute
+                            attach="attributes-position"
+                            array={pointPositions}
+                            itemSize={3}
+                            count={pointPositions.length / 3}
+                        />
+                    </bufferGeometry>
+                    <pointsMaterial color="#ffffff" size={0.03} opacity={0.6} transparent />
+                </points>
+            )}
+
+            {/* Guidance path */}
+            {pathPositions && (
+                <line ref={pathRef}>
+                    <bufferGeometry>
+                        <bufferAttribute
+                            attach="attributes-position"
+                            array={pathPositions}
+                            itemSize={3}
+                            count={pathPositions.length / 3}
+                        />
+                    </bufferGeometry>
+                    <lineDashedMaterial color="#7bdff2" dashSize={0.2} gapSize={0.12} />
+                </line>
+            )}
 
             {/* Camera controls */}
             <OrbitControls
