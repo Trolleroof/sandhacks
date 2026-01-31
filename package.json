@@ -1,0 +1,7 @@
+{
+  "name": "reality-memory",
+  "private": true,
+  "scripts": {
+    "dev": "cd frontend && npm run dev"
+  }
+}
