@@ -1,65 +1,101 @@
-import Image from "next/image";
+"use client";
+
+import { VoiceInterface } from "./components";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="app-container">
+      {/* Animated Background */}
+      <div className="background-gradient" />
+      <div className="background-orbs">
+        <div className="orb orb-1" />
+        <div className="orb orb-2" />
+        <div className="orb orb-3" />
+      </div>
+
+      {/* Main Content */}
+      <main className="main-content">
+        {/* Header */}
+        <header className="header">
+          <div className="logo">
+            <div className="logo-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                <circle cx="12" cy="9" r="2.5" />
+              </svg>
+            </div>
+            <div className="logo-text">
+              <h1>Reality Memory</h1>
+              <p>Spatial Memory System</p>
+            </div>
+          </div>
+          <nav className="nav-tabs">
+            <button className="nav-tab active">Recall</button>
+            <button className="nav-tab">Map</button>
+            <button className="nav-tab">Objects</button>
+          </nav>
+        </header>
+
+        {/* Hero Section */}
+        <section className="hero">
+          <h2>Find anything you&apos;ve lost</h2>
+          <p>
+            Ask me where you left your belongings. I remember where everything
+            was last seen and will guide you back to it.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+        </section>
+
+        {/* Voice Interface */}
+        <VoiceInterface />
+
+        {/* Quick Actions */}
+        <section className="quick-actions">
+          <h3>Quick Search</h3>
+          <div className="action-grid">
+            {[
+              { icon: "💧", label: "Water Bottle" },
+              { icon: "🔑", label: "Keys" },
+              { icon: "🎒", label: "Backpack" },
+              { icon: "💻", label: "Laptop" },
+              { icon: "📱", label: "Phone" },
+              { icon: "👓", label: "Glasses" },
+            ].map((item) => (
+              <button key={item.label} className="action-button">
+                <span className="action-icon">{item.icon}</span>
+                <span className="action-label">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* Recent Activity */}
+        <section className="recent-activity">
+          <h3>Recent Searches</h3>
+          <div className="activity-list">
+            <div className="activity-item">
+              <span className="activity-icon">🔑</span>
+              <div className="activity-details">
+                <span className="activity-name">Keys</span>
+                <span className="activity-time">Found • 5 min ago</span>
+              </div>
+              <span className="activity-status found">✓</span>
+            </div>
+            <div className="activity-item">
+              <span className="activity-icon">💧</span>
+              <div className="activity-details">
+                <span className="activity-name">Water Bottle</span>
+                <span className="activity-time">Located • 1 hour ago</span>
+              </div>
+              <span className="activity-status found">✓</span>
+            </div>
+          </div>
+        </section>
       </main>
+
+      {/* Footer */}
+      <footer className="footer">
+        <p>Reality Memory • Built with ❤️ at SandHacks 2025</p>
+      </footer>
     </div>
   );
 }
