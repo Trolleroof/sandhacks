@@ -116,16 +116,7 @@ export function HowItWorksSection() {
 
                   {/* Point cloud dots - appearing effect */}
                   <g clipPath="url(#step1-bg-clip)">
-                    {Array.from({ length: 30 }).map((_, i) => (
-                      <circle
-                        key={`dot-${i}`}
-                        cx={Math.random() * 200}
-                        cy={Math.random() * 150}
-                        r="1.5"
-                        fill="#D4A574"
-                        className="point-cloud-dot"
-                        style={{ animationDelay: `${i * 50}ms` }}
-                  {POINT_CLOUD_DOTS.map((dot, i) => (
+                    {POINT_CLOUD_DOTS.map((dot, i) => (
                     <circle
                       key={`dot-${i}`}
                       cx={dot.cx}
@@ -135,7 +126,8 @@ export function HowItWorksSection() {
                       className="point-cloud-dot"
                       style={{ animationDelay: `${i * 50}ms` }}
                     />
-                  ))}
+                    ))}
+                  </g>
                 </svg>
               )}
 
