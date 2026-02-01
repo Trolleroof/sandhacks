@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useMemo } from "react";
+import { useRef, useState, useMemo, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
     OrbitControls,
@@ -215,6 +215,11 @@ function Scene({
     selectedObjectId: string | null;
     onObjectClick: (id: string) => void;
 }) {
+    // Refs to track Three.js geometries for cleanup
+    const prevPointGeometryRef = useRef<THREE.BufferGeometry | null>(null);
+    const prevPathGeometryRef = useRef<THREE.BufferGeometry | null>(null);
+    const prevPathMaterialRef = useRef<THREE.Material | null>(null);
+
     const pointPositions = useMemo(() => {
         if (!data.mapPoints || data.mapPoints.length === 0) return null;
         const positions = new Float32Array(data.mapPoints.length * 3);
@@ -238,6 +243,14 @@ function Scene({
     }, [data.path]);
 
     const pathLineObject = useMemo(() => {
+        // Dispose previous geometry and material
+        if (prevPathGeometryRef.current) {
+            prevPathGeometryRef.current.dispose();
+        }
+        if (prevPathMaterialRef.current) {
+            prevPathMaterialRef.current.dispose();
+        }
+
         if (!pathPositions) return null;
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute("position", new THREE.BufferAttribute(pathPositions, 3));
@@ -248,8 +261,26 @@ function Scene({
         });
         const line = new THREE.Line(geometry, material);
         line.computeLineDistances();
+
+        prevPathGeometryRef.current = geometry;
+        prevPathMaterialRef.current = material;
         return line;
     }, [pathPositions]);
+
+    // Cleanup effect to dispose geometries on unmount
+    useEffect(() => {
+        return () => {
+            if (prevPointGeometryRef.current) {
+                prevPointGeometryRef.current.dispose();
+            }
+            if (prevPathGeometryRef.current) {
+                prevPathGeometryRef.current.dispose();
+            }
+            if (prevPathMaterialRef.current) {
+                prevPathMaterialRef.current.dispose();
+            }
+        };
+    }, []);
 
     return (
         <>
