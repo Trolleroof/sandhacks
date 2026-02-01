@@ -267,15 +267,18 @@ export function HowItWorksSection() {
                 <CardContent className="p-10 text-center relative z-10">
                   {/* Icon from react-icons (same pack as ProblemSection) */}
                   <div className="flex justify-center mb-4">
-                    <step.Icon className="w-10 h-10 text-slateblue/90" aria-hidden />
+                    <step.Icon
+                      className="w-11 h-11 text-eggshell drop-shadow-[0_0_12px_rgba(240,235,216,0.35)]"
+                      aria-hidden
+                    />
                   </div>
-                  <div className="text-xs uppercase tracking-[0.3em] text-denim/70 mb-4">
+                  <div className="text-xs uppercase tracking-[0.3em] text-eggshell/70 drop-shadow-[0_0_8px_rgba(240,235,216,0.25)] mb-4">
                     Step {index + 1}
                   </div>
                   <h3 className="text-xl font-semibold text-eggshell mb-3 font-serif">
                     {step.title}
                   </h3>
-                  <p className="text-base text-denim/80 leading-relaxed">{step.description}</p>
+                  <p className="text-base text-eggshell/90 leading-relaxed">{step.description}</p>
                 </CardContent>
               </Card>
             );
