@@ -19,3 +19,8 @@ cloud_web_bridge_node:
     # --------------- statistical outlier removal (active when enable_outlier: true)
     outlier_mean_k:          50
     outlier_stddev_thresh:  1.0
+
+    # --------------- detection forwarding ----------------------------------------
+    detection_publish_rate_hz: 2.0   # objects publish rate (Hz)
+    detection_merge_radius_m:  0.5   # metres — same-label detections closer merge
+    detection_ttl_s:          60.0   # seconds before unseen object is evicted

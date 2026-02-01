@@ -16,6 +16,7 @@ find_package(std_msgs REQUIRED)
 add_executable(cloud_web_bridge_node
   src/cloud_web_bridge_node.cpp
 )
+target_include_directories(cloud_web_bridge_node PRIVATE include)
 ament_target_dependencies(cloud_web_bridge_node
   rclcpp
   sensor_msgs

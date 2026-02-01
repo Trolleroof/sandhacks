@@ -34,13 +34,21 @@ export default function MapPage() {
             ? rosbridge.path.map(rosToThree)
             : undefined;
 
+        // Use real detected objects from ROSbridge if available
+        const objects = rosbridge.objects.length > 0
+            ? rosbridge.objects.map((obj) => ({
+                ...obj,
+                position: rosToThree(obj.position),
+            }))
+            : mockSpatialData.objects;
+
         return {
-            ...mockSpatialData,
+            objects,
             cameraPosition,
             mapPoints,
             path,
         };
-    }, [rosbridge.pose, rosbridge.pointCloud, rosbridge.path]);
+    }, [rosbridge.pose, rosbridge.pointCloud, rosbridge.path, rosbridge.objects]);
 
     const selectedObject = selectedObjectId
         ? spatialData.objects.find(o => o.id === selectedObjectId)
