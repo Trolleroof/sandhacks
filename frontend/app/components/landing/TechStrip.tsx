@@ -1,12 +1,10 @@
 "use client";
 
-import { Cpu, Eye, Zap, Mic } from "lucide-react";
-
 const technologies = [
-  { icon: Cpu, name: "VSLAM", description: "Visual SLAM" },
-  { icon: Eye, name: "YOLO", description: "Object Detection" },
-  { icon: Zap, name: "FastAPI", description: "Backend" },
-  { icon: Mic, name: "Voice", description: "Natural Language" },
+  { name: "VSLAM", description: "Visual SLAM" },
+  { name: "YOLO", description: "Object Detection" },
+  { name: "FastAPI", description: "Backend" },
+  { name: "Voice", description: "Natural Language" },
 ];
 
 export function TechStrip() {
@@ -19,7 +17,6 @@ export function TechStrip() {
               key={tech.name}
               className="flex items-center gap-3 opacity-60 hover:opacity-100 transition-opacity"
             >
-              <tech.icon className="h-5 w-5 text-amber" />
               <div className="flex flex-col">
                 <span className="text-sm font-medium text-eggshell">
                   {tech.name}

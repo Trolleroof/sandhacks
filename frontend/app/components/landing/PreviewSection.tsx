@@ -1,6 +1,5 @@
 "use client";
 
-import { MapPin, Clock, Navigation, Wifi } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -56,7 +55,6 @@ export function PreviewSection() {
 
                 {/* Status - pulsing Live indicator */}
                 <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-ink/80 backdrop-blur-sm rounded-[10px] px-3 py-1.5 animate-pulse-live z-20">
-                  <Wifi className="h-3.5 w-3.5 text-green-400 animate-pulse" />
                   <span className="text-xs text-eggshell">Live</span>
                   <div className="w-2 h-2 rounded-full bg-green-400 animate-ping" />
                 </div>
@@ -80,9 +78,6 @@ export function PreviewSection() {
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex gap-4">
-                      <div className="w-14 h-14 rounded-[14px] bg-gradient-to-br from-slateblue via-amber to-denim flex items-center justify-center">
-                        <MapPin className="h-7 w-7 text-eggshell" />
-                      </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <h3 className="font-semibold text-eggshell font-serif">
@@ -91,13 +86,9 @@ export function PreviewSection() {
                           <span className="text-sm text-green-400">94%</span>
                         </div>
                         <Progress value={94} className="h-1.5 mt-1 mb-2" />
-                        <div className="flex items-center gap-2 text-sm text-denim">
-                          <Clock className="h-3.5 w-3.5" />
-                          <span>2 minutes ago</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-eggshell mt-1">
-                          <Navigation className="h-3.5 w-3.5 text-denim" />
-                          <span>3.2m &middot; to your left, near the window</span>
+                        <div className="text-sm text-denim">Last seen 2 minutes ago</div>
+                        <div className="text-sm text-eggshell mt-1">
+                          3.2m &middot; to your left, near the window
                         </div>
                       </div>
                     </div>

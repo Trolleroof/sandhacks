@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Brain, Shield, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function FinalCTA() {
@@ -14,11 +13,6 @@ export function FinalCTA() {
       </div>
 
       <div className="max-w-4xl mx-auto text-center relative z-10">
-        {/* Main icon */}
-        <div className="inline-flex items-center justify-center w-24 h-24 rounded-[28px] bg-gradient-to-br from-slateblue via-amber to-denim mb-8">
-          <Brain className="h-12 w-12 text-eggshell" />
-        </div>
-
         <h2 className="text-4xl sm:text-5xl font-semibold text-eggshell mb-4 font-serif">
           Give your space memory.
         </h2>
@@ -29,18 +23,15 @@ export function FinalCTA() {
         <Button asChild size="lg" className="text-xl px-12 py-7 mb-12 bg-amber hover:bg-amber-muted text-ink font-semibold shadow-lg shadow-amber/20">
           <Link href="/app">
             Try Reality Memory
-            <ArrowRight className="ml-2 h-6 w-6" />
           </Link>
         </Button>
 
         {/* Trust badges */}
         <div className="flex flex-wrap justify-center gap-8">
           <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-space/50 border border-slateblue/20">
-            <Shield className="h-5 w-5 text-slateblue" />
             <span className="text-denim">Privacy-first</span>
           </div>
           <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-space/50 border border-slateblue/20">
-            <Zap className="h-5 w-5 text-slateblue" />
             <span className="text-denim">Works locally</span>
           </div>
         </div>

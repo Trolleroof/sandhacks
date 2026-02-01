@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { ArrowRight, Play, MapPin, Mic, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { animations } from "../../lib/animations";
 
@@ -74,10 +73,7 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
                 size="lg"
                 className="text-base px-7 py-6 bg-amber hover:bg-amber-muted text-ink font-semibold shadow-lg shadow-amber/20"
               >
-                <Link href="/app">
-                  Try it now
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
+                <Link href="/app">Try it now</Link>
               </Button>
 
               <Button
@@ -86,7 +82,6 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
                 className="text-base px-6 py-6 text-denim hover:text-eggshell"
                 onClick={onWatchHowItWorks}
               >
-                <Play className="mr-2 h-4 w-4 fill-current" />
                 See how it works
               </Button>
             </div>
@@ -95,37 +90,28 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
           {/* Right side - Product visual (not generic floating shapes) */}
           <div className="animate-in opacity-0 relative">
             {/* Mockup container */}
-            <div className="relative bg-space/40 backdrop-blur-sm rounded-3xl border border-slateblue/20 p-6 shadow-2xl shadow-ink/50">
+            <div className="relative bg-space/50 backdrop-blur-sm rounded-3xl border border-slateblue/30 p-6 shadow-2xl shadow-ink/50">
               {/* Simulated interface */}
               <div className="space-y-4">
                 {/* Query example */}
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-slateblue/30 flex items-center justify-center shrink-0">
-                    <Mic className="w-5 h-5 text-denim" />
-                  </div>
-                  <div className="flex-1 bg-space/60 rounded-2xl rounded-tl-md px-4 py-3">
+                  <div className="flex-1 bg-space/70 rounded-2xl rounded-tl-md px-4 py-3 border border-slateblue/20">
                     <p className="text-eggshell text-sm">"Where did I put my reading glasses?"</p>
                   </div>
                 </div>
 
                 {/* Response example */}
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber/20 flex items-center justify-center shrink-0">
-                    <Volume2 className="w-5 h-5 text-amber" />
-                  </div>
-                  <div className="flex-1 bg-ink/40 rounded-2xl rounded-tl-md px-4 py-3 border border-slateblue/10">
+                  <div className="flex-1 bg-ink/60 rounded-2xl rounded-tl-md px-4 py-3 border border-slateblue/25">
                     <p className="text-eggshell text-sm mb-2">
                       Your reading glasses are on the kitchen counter, near the coffee maker.
                     </p>
-                    <div className="flex items-center gap-2 text-xs text-denim">
-                      <MapPin className="w-3 h-3" />
-                      <span>Last seen 2 hours ago</span>
-                    </div>
+                    <div className="text-xs text-denim">Last seen 2 hours ago</div>
                   </div>
                 </div>
 
                 {/* Architectural floor plan mockup - unified SVG system */}
-                <div className="mt-4 h-36 rounded-xl border border-slateblue/10 overflow-hidden relative floor-plan-grid">
+                <div className="mt-4 h-36 rounded-xl border border-slateblue/20 overflow-hidden relative floor-plan-grid bg-ink/30">
                   {/* SVG Floor Plan + All Visual Elements */}
                   <svg
                     className="absolute inset-0 w-full h-full"
@@ -151,23 +137,25 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
                       width="184"
                       height="80"
                       fill="none"
-                      stroke="#333333"
-                      strokeWidth="0.5"
+                      stroke="#4a5568"
+                      strokeWidth="0.6"
+                      strokeOpacity="0.9"
                     />
 
                     {/* Room divider - vertical wall with doorway */}
-                    <line x1="89" y1="10" x2="89" y2="39" stroke="#333333" strokeWidth="0.5" />
-                    <line x1="89" y1="56" x2="89" y2="90" stroke="#333333" strokeWidth="0.5" />
+                    <line x1="89" y1="10" x2="89" y2="39" stroke="#4a5568" strokeWidth="0.6" strokeOpacity="0.9" />
+                    <line x1="89" y1="56" x2="89" y2="90" stroke="#4a5568" strokeWidth="0.6" strokeOpacity="0.9" />
 
                     {/* Kitchen counter (L-shape) */}
                     <polyline
                       points="135,90 135,61 175,61"
                       fill="none"
-                      stroke="#333333"
-                      strokeWidth="0.5"
+                      stroke="#4a5568"
+                      strokeWidth="0.6"
+                      strokeOpacity="0.9"
                     />
                     {/* Counter surface hint */}
-                    <line x1="135" y1="75" x2="171" y2="75" stroke="#333333" strokeWidth="0.3" strokeOpacity="0.5" />
+                    <line x1="135" y1="75" x2="171" y2="75" stroke="#4a5568" strokeWidth="0.4" strokeOpacity="0.6" />
 
                     {/* Small table in living room */}
                     <rect
@@ -176,9 +164,9 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
                       width="23"
                       height="14"
                       fill="none"
-                      stroke="#333333"
-                      strokeWidth="0.3"
-                      strokeOpacity="0.5"
+                      stroke="#4a5568"
+                      strokeWidth="0.4"
+                      strokeOpacity="0.6"
                     />
 
                     {/* Curved path - starts exactly at YOU position (31, 87) */}
@@ -246,7 +234,7 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
                       y="40"
                       fontSize="5"
                       fill="#D4A574"
-                      fillOpacity="0.7"
+                      fillOpacity="0.9"
                       textAnchor="middle"
                       fontWeight="500"
                       letterSpacing="0.5"

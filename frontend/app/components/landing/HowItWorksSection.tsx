@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Map, Brain, Navigation, ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { animations } from "../../lib/animations";
+import { HiOutlineMap } from "react-icons/hi2";
+import { IoMdSave } from "react-icons/io";
+import { MdSearch } from "react-icons/md";
+import type { IconType } from "react-icons";
 
 // Pre-generated point cloud positions to avoid hydration mismatch
 // (Math.random() produces different values on server vs client)
@@ -18,24 +21,21 @@ const POINT_CLOUD_DOTS = [
   { cx: 56, cy: 67 }, { cx: 123, cy: 145 },
 ];
 
-const steps = [
+const steps: { title: string; description: string; Icon: IconType }[] = [
   {
-    icon: Map,
     title: "Map your space",
     description: "Walk through your environment while our AI learns and catalogs object locations in real-time.",
-    color: "from-slateblue via-amber to-denim",
+    Icon: HiOutlineMap,
   },
   {
-    icon: Brain,
     title: "We remember",
-    description: "Every object is stored with precise spatial coordinates—a persistent memory for your space.",
-    color: "from-amber to-slateblue",
+    description: "Every object is stored with precise spatial coordinates, a persistent memory for your space.",
+    Icon: IoMdSave,
   },
   {
-    icon: Navigation,
     title: "Ask & find",
     description: '"Where are my keys?" Get instant voice-guided directions to any remembered object.',
-    color: "from-slateblue via-amber to-denim",
+    Icon: MdSearch,
   },
 ];
 
@@ -86,7 +86,7 @@ export function HowItWorksSection() {
         {/* Steps - larger cards with V-SLAM visualization on Step 1 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {steps.map((step, index) => {
-            const StepIcon = step.icon;
+            const Icon = step.Icon;
             return (
               <Card
                 key={step.title}
@@ -265,13 +265,13 @@ export function HowItWorksSection() {
                 )}
 
                 <CardContent className="p-10 text-center relative z-10">
-                  {/* Icon */}
-                  <div
-                    className={`inline-flex items-center justify-center w-20 h-20 rounded-[20px] bg-gradient-to-br ${step.color} mb-6`}
-                  >
-                    <StepIcon className="h-10 w-10 text-eggshell" />
+                  {/* Icon from react-icons (same pack as ProblemSection) */}
+                  <div className="flex justify-center mb-4">
+                    <step.Icon className="w-10 h-10 text-slateblue/90" aria-hidden />
                   </div>
-
+                  <div className="text-xs uppercase tracking-[0.3em] text-denim/70 mb-4">
+                    Step {index + 1}
+                  </div>
                   <h3 className="text-xl font-semibold text-eggshell mb-3 font-serif">
                     {step.title}
                   </h3>
