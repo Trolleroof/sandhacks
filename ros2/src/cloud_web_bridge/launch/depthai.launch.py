@@ -19,7 +19,12 @@ def generate_launch_description():
                  'subscribe_rgbd':True,
                  'subscribe_odom_info':True,
                  'approx_sync':False,
-                 'wait_imu_to_init':True}]
+                 'wait_imu_to_init':True,
+                 # The "Master" resolution switch (2cm)
+                'Grid/CellSize': '0.02',
+                # Input Density (1 = no decimation)
+                #'Grid/DepthDecimation': '0',
+                }]
 
     remappings=[('imu', '/imu/data')]
 
