@@ -141,7 +141,7 @@ export default function LandingPage() {
                 Demo
               </Link>
               <a
-                href="https://github.com"
+                href="https://github.com/Trolleroof/sandhacks"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-denim hover:text-eggshell transition-colors"
