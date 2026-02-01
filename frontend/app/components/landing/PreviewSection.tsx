@@ -1,7 +1,6 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
 export function PreviewSection() {
@@ -37,27 +36,15 @@ export function PreviewSection() {
             </div>
 
             {/* App content preview */}
-            <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Camera view mock */}
-              <div className="aspect-video bg-gradient-to-br from-space to-ink rounded-[18px] border border-slateblue/30 flex items-center justify-center relative overflow-hidden">
-                {/* Simulated camera view */}
-                <div className="absolute inset-0 bg-gradient-to-t from-ink/80 to-transparent" />
-
-                {/* Vertical scanning line - mechanical effect */}
-                <div className="scanning-line" />
-
-                {/* Detection box */}
-                <div className="absolute top-1/4 left-1/3 w-24 h-24 border-2 border-denim rounded-lg flex items-end justify-center pb-1 z-10">
-                  <Badge variant="secondary" className="text-xs">
-                    water bottle
-                  </Badge>
-                </div>
-
-                {/* Status - pulsing Live indicator */}
-                <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-ink/80 backdrop-blur-sm rounded-[10px] px-3 py-1.5 animate-pulse-live z-20">
-                  <span className="text-xs text-eggshell">Live</span>
-                  <div className="w-2 h-2 rounded-full bg-green-400 animate-ping" />
-                </div>
+            <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+              {/* Spatial map preview (static image) */}
+              <div className="h-full min-h-[260px] bg-ink rounded-[18px] border border-slateblue/30 flex items-center justify-center relative overflow-hidden shadow-[inset_0_0_30px_rgba(0,0,0,0.45)]">
+                <img
+                  src="/images/demo.png"
+                  alt="Spatial map preview showing detected objects"
+                  className="block w-full h-full object-cover object-[50%_75%]"
+                  loading="lazy"
+                />
               </div>
 
               {/* Results panel mock */}
