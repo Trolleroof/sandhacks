@@ -34,3 +34,14 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+
+ We are on the verge of greatness. Right now, my node @../src/depth_mapping/src/spatial_recognition_node.cpp outputs a bunch of different spatial            
+  detections that are relative to the camera. I want you to integrate this with @../src/cloud_web_bridge/src/cloud_web_bridge_node.cpp . I want you to        
+  take in these detects, and take the camera pose at that time frame, and using that, transforms these object detections onto the world frame. Then, I        
+  want you to expose a route to the frontend similar to current routes that gives a list of these detections in the world frame. It should be in a            
+  format: {                                                                                                                                                   
+    "objects": [                                                                                                                                              
+      { "id": "...", "name": "...", "position": {x,y,z}, "confidence": 0.94, "timestamp": "..." }                                                             
+    ]                                                                                                                                                         
+  } when requested from the websocket.

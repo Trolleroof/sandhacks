@@ -9,20 +9,28 @@
 //   /cloud_map           → /web/pointcloud   (Base64-encoded PointCloud2)
 //   /odom                → /web/pose         (position + quaternion)
 //   /mapPath             → /web/path         (array of positions)
+//   /spatial_detections  → /web/objects      (world-frame object detections)
 // ---------------------------------------------------------------------------
 
 #include <chrono>
 #include <cstdio>
 #include <cstdint>
+#include <iomanip>
 #include <sstream>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <mutex>
+#include <cmath>
 
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <depth_mapping/msg/spatial_detection_array.hpp>
+#include <geometry_msgs/msg/pose.hpp>
+#include <geometry_msgs/msg/quaternion.hpp>
 
 // ===========================================================================
 // Inline base64 encoder  (avoids an external dependency for a small utility)
@@ -73,6 +81,17 @@ std::string base64_encode(const std::vector<uint8_t>& data)
 }  // anonymous namespace
 
 // ===========================================================================
+// World-frame object detection structure
+// ===========================================================================
+struct WorldObject {
+  std::string id;
+  std::string name;
+  double x, y, z;
+  double confidence;
+  std::string timestamp;
+};
+
+// ===========================================================================
 // Node
 // ===========================================================================
 class CloudWebBridgeNode : public rclcpp::Node
@@ -107,6 +126,10 @@ public:
         "/mapPath", rclcpp::QoS(10),
         [this](const nav_msgs::msg::Path& msg) { onPath(msg); });
 
+    spatial_detections_sub_ = create_subscription<depth_mapping::msg::SpatialDetectionArray>(
+        "/spatial_detections", rclcpp::QoS(10),
+        [this](const depth_mapping::msg::SpatialDetectionArray& msg) { onSpatialDetections(msg); });
+
     // ---- publishers --------------------------------------------------------
     cloud_pub_ =
         create_publisher<std_msgs::msg::String>("/web/pointcloud", rclcpp::QoS(1));
@@ -120,6 +143,8 @@ public:
         create_publisher<std_msgs::msg::String>("/web/pose", rclcpp::QoS(1));
     path_pub_ =
         create_publisher<std_msgs::msg::String>("/web/path", rclcpp::QoS(1));
+    objects_pub_ =
+        create_publisher<std_msgs::msg::String>("/web/objects", rclcpp::QoS(1));
 
     RCLCPP_INFO(get_logger(), "cloud_web_bridge_node started");
     RCLCPP_INFO(get_logger(), "  publish_rate_hz      : %.1f", publish_rate_hz_);
@@ -158,6 +183,7 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_map_sub_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
   rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr path_sub_;
+  rclcpp::Subscription<depth_mapping::msg::SpatialDetectionArray>::SharedPtr spatial_detections_sub_;
 
   // Buffered latest cloud_map message (nullptr = not yet received)
   std::shared_ptr<sensor_msgs::msg::PointCloud2> cloud_map_latest_;
@@ -168,6 +194,16 @@ private:
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr cloud_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pose_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr path_pub_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr objects_pub_;
+
+  // --- spatial detections tracking ------------------------------------------
+  std::mutex camera_pose_mutex_;
+  geometry_msgs::msg::Pose latest_camera_pose_;
+  bool camera_pose_ready_ = false;
+
+  std::mutex objects_mutex_;
+  std::unordered_map<std::string, WorldObject> world_objects_;
+  uint64_t next_object_id_ = 0;
 
   // ==========================================================================
   // Helpers
@@ -237,6 +273,13 @@ private:
   // --- pose -----------------------------------------------------------------
   void onOdom(const nav_msgs::msg::Odometry& odom)
   {
+    // Store latest camera pose for spatial detection transforms
+    {
+      std::lock_guard<std::mutex> lock(camera_pose_mutex_);
+      latest_camera_pose_ = odom.pose.pose;
+      camera_pose_ready_ = true;
+    }
+
     if (!shouldPublish(last_pose_pub_, publish_rate_hz_)) return;
 
     const auto& p  = odom.pose.pose.position;
@@ -292,6 +335,121 @@ private:
 
     last_path_len_ = path.poses.size();
     last_path_pub_ = Clock::now();
+  }
+
+  // --- spatial detections ---------------------------------------------------
+  void onSpatialDetections(const depth_mapping::msg::SpatialDetectionArray& detections)
+  {
+    if (!camera_pose_ready_) {
+      RCLCPP_WARN_THROTTLE(
+          get_logger(),
+          *get_clock(),
+          5000,
+          "No camera pose available yet, skipping spatial detections.");
+      return;
+    }
+
+    geometry_msgs::msg::Pose camera_pose;
+    {
+      std::lock_guard<std::mutex> lock(camera_pose_mutex_);
+      camera_pose = latest_camera_pose_;
+    }
+
+    double timestamp = stampToDouble(detections.header.stamp);
+
+    std::lock_guard<std::mutex> lock(objects_mutex_);
+
+    // Clear old detections (or implement a more sophisticated tracking system)
+    world_objects_.clear();
+
+    for (const auto& det : detections.detections) {
+      // Transform from camera frame to world frame
+      auto world_pos = transformToWorldFrame(
+          det.pose_camera.position,
+          camera_pose);
+
+      // Generate unique ID
+      std::ostringstream id_stream;
+      id_stream << "obj_" << std::setfill('0') << std::setw(6) << next_object_id_++;
+
+      WorldObject obj;
+      obj.id = id_stream.str();
+      obj.name = det.class_name;
+      obj.x = world_pos.x;
+      obj.y = world_pos.y;
+      obj.z = world_pos.z;
+      obj.confidence = det.confidence;
+
+      // Format timestamp as ISO string
+      std::ostringstream ts_stream;
+      ts_stream << std::fixed << std::setprecision(6) << timestamp;
+      obj.timestamp = ts_stream.str();
+
+      world_objects_[obj.id] = obj;
+    }
+
+    // Publish updated objects list
+    publishObjects();
+  }
+
+  // Transform a point from camera frame to world frame using camera pose
+  geometry_msgs::msg::Point transformToWorldFrame(
+      const geometry_msgs::msg::Point& camera_point,
+      const geometry_msgs::msg::Pose& camera_pose)
+  {
+    // Extract quaternion components
+    double qw = camera_pose.orientation.w;
+    double qx = camera_pose.orientation.x;
+    double qy = camera_pose.orientation.y;
+    double qz = camera_pose.orientation.z;
+
+    // Convert quaternion to rotation matrix
+    double r11 = 1.0 - 2.0 * (qy * qy + qz * qz);
+    double r12 = 2.0 * (qx * qy - qw * qz);
+    double r13 = 2.0 * (qx * qz + qw * qy);
+
+    double r21 = 2.0 * (qx * qy + qw * qz);
+    double r22 = 1.0 - 2.0 * (qx * qx + qz * qz);
+    double r23 = 2.0 * (qy * qz - qw * qx);
+
+    double r31 = 2.0 * (qx * qz - qw * qy);
+    double r32 = 2.0 * (qy * qz + qw * qx);
+    double r33 = 1.0 - 2.0 * (qx * qx + qy * qy);
+
+    // Apply rotation and translation
+    geometry_msgs::msg::Point world_point;
+    world_point.x = r11 * camera_point.x + r12 * camera_point.y + r13 * camera_point.z + camera_pose.position.x;
+    world_point.y = r21 * camera_point.x + r22 * camera_point.y + r23 * camera_point.z + camera_pose.position.y;
+    world_point.z = r31 * camera_point.x + r32 * camera_point.y + r33 * camera_point.z + camera_pose.position.z;
+
+    return world_point;
+  }
+
+  // Publish world-frame objects as JSON
+  void publishObjects()
+  {
+    std::ostringstream oss;
+    oss << "{\"objects\":[";
+
+    bool first = true;
+    for (const auto& [id, obj] : world_objects_) {
+      if (!first) oss << ",";
+      first = false;
+
+      oss << "{\"id\":\"" << obj.id << "\""
+          << ",\"name\":\"" << obj.name << "\""
+          << ",\"position\":{\"x\":" << std::fixed << std::setprecision(6) << obj.x
+          << ",\"y\":" << obj.y
+          << ",\"z\":" << obj.z << "}"
+          << ",\"confidence\":" << std::setprecision(2) << obj.confidence
+          << ",\"timestamp\":\"" << obj.timestamp << "\"}";
+    }
+
+    oss << "]}";
+
+    std_msgs::msg::String msg;
+    msg.data = oss.str();
+    objects_pub_->publish(msg);
   }
 
   // ==========================================================================

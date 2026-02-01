@@ -11,6 +11,8 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(depth_mapping REQUIRED)
 
 # executable
 add_executable(cloud_web_bridge_node
@@ -21,6 +23,8 @@ ament_target_dependencies(cloud_web_bridge_node
   sensor_msgs
   nav_msgs
   std_msgs
+  geometry_msgs
+  depth_mapping
 )
 
 # install
