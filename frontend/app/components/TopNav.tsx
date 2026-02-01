@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Brain, Settings, HelpCircle, RotateCcw } from "lucide-react";
+import { Brain, Settings, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -14,7 +14,6 @@ import { cn } from "@/lib/utils";
 import { StatusPill } from "./StatusPill";
 import { ModeToggle } from "./ModeToggle";
 import { DebugDrawer } from "./DebugDrawer";
-import { HelpDialog } from "./HelpDialog";
 import { SettingsDialog } from "./SettingsDialog";
 import type { ConnectionStatus, AppMode, MappingState } from "../store/appStore";
 import type { DebugData } from "../lib/mockData";
@@ -50,7 +49,6 @@ export function TopNav({
   onReset,
   className,
 }: TopNavProps) {
-  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (
@@ -71,7 +69,6 @@ export function TopNav({
               <h1 className="text-lg font-semibold text-eggshell leading-tight">
                 Reality Memory
               </h1>
-              <p className="text-xs text-denim">Spatial object finder</p>
             </div>
           </Link>
 
@@ -102,19 +99,7 @@ export function TopNav({
             <TooltipContent>Settings</TooltipContent>
           </Tooltip>
 
-          {/* Help */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsHelpOpen(true)}
-              >
-                <HelpCircle className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Help</TooltipContent>
-          </Tooltip>
+
 
           {/* Reset */}
           <Tooltip>
@@ -139,7 +124,6 @@ export function TopNav({
       </nav>
 
       {/* Dialogs */}
-      <HelpDialog open={isHelpOpen} onOpenChange={setIsHelpOpen} />
       <SettingsDialog
         open={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
