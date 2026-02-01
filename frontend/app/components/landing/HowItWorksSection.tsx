@@ -272,13 +272,13 @@ export function HowItWorksSection() {
                       aria-hidden
                     />
                   </div>
-                  <div className="text-xs uppercase tracking-[0.3em] text-eggshell/70 drop-shadow-[0_0_8px_rgba(240,235,216,0.25)] mb-4">
+                  <div className="text-xs uppercase tracking-[0.3em] text-eggshell/90 drop-shadow-[0_0_8px_rgba(240,235,216,0.25)] mb-4">
                     Step {index + 1}
                   </div>
                   <h3 className="text-xl font-semibold text-eggshell mb-3 font-serif">
                     {step.title}
                   </h3>
-                  <p className="text-base text-eggshell/90 leading-relaxed">{step.description}</p>
+                  <p className="text-base text-eggshell leading-relaxed">{step.description}</p>
                 </CardContent>
               </Card>
             );
