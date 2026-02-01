@@ -11,7 +11,7 @@ export function PreviewSection() {
       <div className="max-w-6xl mx-auto">
         {/* Section header */}
         <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-eggshell mb-4">
+          <h2 className="text-3xl sm:text-4xl font-semibold text-eggshell mb-4 font-serif">
             See It In Action
           </h2>
           <p className="text-lg text-denim max-w-2xl mx-auto">
@@ -76,12 +76,12 @@ export function PreviewSection() {
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex gap-4">
-                      <div className="w-14 h-14 rounded-[14px] bg-gradient-to-br from-slateblue to-denim flex items-center justify-center">
+                      <div className="w-14 h-14 rounded-[14px] bg-gradient-to-br from-slateblue via-amber to-denim flex items-center justify-center">
                         <MapPin className="h-7 w-7 text-eggshell" />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-semibold text-eggshell">
+                          <h3 className="font-semibold text-eggshell font-serif">
                             Water Bottle
                           </h3>
                           <span className="text-sm text-green-400">94%</span>

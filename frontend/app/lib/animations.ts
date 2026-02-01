@@ -195,6 +195,35 @@ export const animations = {
   },
 
   /**
+   * Memory scan reveal - cards slide in from different directions
+   * Used for ProblemSection target audience cards
+   */
+  memoryScanReveal(targets: Element[]) {
+    if (prefersReducedMotion()) return;
+
+    // Define slide directions for each card (alternating pattern)
+    const directions = [
+      { x: -60, y: 0 },    // Card 1: slide from left
+      { x: 0, y: -60 },    // Card 2: slide from top
+      { x: 60, y: 0 },     // Card 3: slide from right
+      { x: 0, y: 60 },     // Card 4: slide from bottom
+    ];
+
+    return targets.map((target, index) => {
+      const dir = directions[index % directions.length];
+      return animate(target, {
+        opacity: [0, 1],
+        translateX: [dir.x, 0],
+        translateY: [dir.y, 0],
+        scale: [0.9, 1],
+        duration: 700,
+        ease: "outExpo",
+        delay: index * 120,
+      });
+    });
+  },
+
+  /**
    * Stop all animations on target
    */
   stop(target: string | Element | Element[]) {

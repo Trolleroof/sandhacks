@@ -9,6 +9,11 @@
   --denim: #748cab;
   --eggshell: #f0ebd8;
 
+  /* Warm Accent - adds humanity to the cold tech palette */
+  --amber: #d4a574;
+  --amber-muted: #b8956a;
+  --sage: #7d9a78;
+
   /* Semantic Mappings */
   --background: var(--ink);
   --foreground: var(--eggshell);
@@ -36,10 +41,14 @@
   --color-slateblue: var(--slateblue);
   --color-denim: var(--denim);
   --color-eggshell: var(--eggshell);
+  --color-amber: var(--amber);
+  --color-amber-muted: var(--amber-muted);
+  --color-sage: var(--sage);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-lora);
 }
 
 * {
@@ -78,7 +87,7 @@ body {
 .background-noise {
   position: fixed;
   inset: 0;
-  opacity: 0.03;
+  opacity: 0.06;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
   pointer-events: none;
   z-index: 0;
@@ -139,6 +148,89 @@ body {
   66% {
     transform: translate(-20px, 20px) scale(0.95);
   }
+}
+
+/* SVG path draw-in animation for dashed lines */
+@keyframes path-fade-in {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 8;
+  }
+  100% {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes path-pulse {
+  0%, 100% {
+    stroke-opacity: 0.4;
+  }
+  50% {
+    stroke-opacity: 0.7;
+  }
+}
+
+.animate-draw-path {
+  opacity: 0;
+  animation:
+    path-fade-in 0.8s ease-out 0.8s forwards,
+    path-pulse 2.5s ease-in-out 1.6s infinite;
+}
+
+/* Floor plan grid background - technical precision feel */
+.floor-plan-grid {
+  background-color: #0a0e14;
+  background-image:
+    linear-gradient(rgba(51, 51, 51, 0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(51, 51, 51, 0.15) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Blue pulse animation for "You" marker */
+@keyframes pulse-blue {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(116, 140, 171, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(116, 140, 171, 0);
+  }
+}
+
+.animate-pulse-blue {
+  animation: pulse-blue 2s ease-in-out infinite;
+}
+
+/* SVG glow filter for path */
+.path-glow {
+  filter: drop-shadow(0 0 2px rgba(212, 165, 116, 0.4));
+}
+
+/* SVG pulse animations */
+@keyframes svg-pulse-blue {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes svg-pulse-amber {
+  0%, 100% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.svg-pulse-blue {
+  animation: svg-pulse-blue 2.5s ease-in-out infinite;
+}
+
+.svg-pulse-amber {
+  animation: svg-pulse-amber 2.5s ease-in-out infinite;
 }
 
 /* Main Content */
@@ -833,6 +925,70 @@ body {
 
 .activity-status.found {
   color: var(--success);
+}
+
+/* Glassmorphism card base - for memory scan effect */
+.glass-card {
+  background: rgba(29, 45, 68, 0.4) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(62, 92, 118, 0.3) !important;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  border-color: rgba(62, 92, 118, 0.6) !important;
+  background: rgba(29, 45, 68, 0.5) !important;
+}
+
+/* Sonar pulse effect on hover */
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(212, 165, 116, 0.3) 0%, transparent 70%);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: all 0s;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.glass-card:hover::before {
+  animation: sonar-pulse 1.5s ease-out;
+}
+
+@keyframes sonar-pulse {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    width: 300px;
+    height: 300px;
+    opacity: 0;
+  }
+}
+
+/* Flickering stats effect - like low-power digital display */
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+  75% { opacity: 0.95; }
+}
+
+.stat-flicker {
+  animation: flicker 3s ease-in-out infinite;
 }
 
 /* Footer */
