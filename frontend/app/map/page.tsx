@@ -171,8 +171,8 @@ export default function MapPage() {
                                                 onClick={() => {
                                                     if (selectedObject) {
                                                         setGuidingToObjectId(selectedObjectId);
-                                                        // Trigger guidance via query (this allows voice/text compatibility)
-                                                        setGuidanceQuery(selectedObject.name);
+                                                        // Trigger guidance via the specific object ID
+                                                        setGuidanceQuery(selectedObject.id);
                                                         // Reset the query after a short delay to allow re-triggering
                                                         setTimeout(() => setGuidanceQuery(null), 100);
                                                     }

@@ -466,8 +466,8 @@ function AppContent() {
                             const searchQuery = `find my ${selectedMapObject.name}`;
                             setQuery(searchQuery);
 
-                            // Trigger visual guidance path
-                            setGuidanceQuery(selectedMapObject.name);
+                            // Trigger visual guidance path using the specific object ID
+                            setGuidanceQuery(selectedMapObject.id);
                             setTimeout(() => setGuidanceQuery(null), 100);
 
                             // Trigger LLM guidance (same as search results)

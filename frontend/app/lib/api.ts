@@ -1,7 +1,7 @@
 // API client for Recall backend
 
 import type { ObjectLocation, GuidanceData } from "./mockData";
-import { findObject, getMockGuidance, mockObjects, mockDetections } from "./mockData";
+import { findObject, searchObjects, getMockGuidance, mockObjects, mockDetections } from "./mockData";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -123,9 +123,11 @@ export const mockApi = {
   objects: {
     async search(query: string): Promise<{ results: ObjectLocation[]; error?: string }> {
       await new Promise((resolve) => setTimeout(resolve, 300));
-      const found = findObject(query);
+      const found = searchObjects(query);
+      // Sort by distance (nearest first)
+      const sorted = found.sort((a, b) => a.distanceMeters - b.distanceMeters);
       return {
-        results: found ? [found] : [],
+        results: sorted,
       };
     },
   },

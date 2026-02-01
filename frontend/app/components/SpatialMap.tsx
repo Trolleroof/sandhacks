@@ -486,15 +486,23 @@ function speakGuidance(objectName: string, distance: number, isUpdate = false) {
 export function findObjectByQuery(objects: SpatialObject[], query: string): SpatialObject | null {
     const lowerQuery = query.toLowerCase().trim();
 
-    // Exact match first
-    let match = objects.find(obj => obj.name.toLowerCase() === lowerQuery);
+    // First, check if the query is an exact ID match (highest priority)
+    let match = objects.find(obj => obj.id === query);
     if (match) return match;
 
-    // Partial match
+    // Then check for case-insensitive ID match
+    match = objects.find(obj => obj.id.toLowerCase() === lowerQuery);
+    if (match) return match;
+
+    // Exact name match
+    match = objects.find(obj => obj.name.toLowerCase() === lowerQuery);
+    if (match) return match;
+
+    // Partial name match
     match = objects.find(obj => obj.name.toLowerCase().includes(lowerQuery));
     if (match) return match;
 
-    // Word match
+    // Word match in name
     match = objects.find(obj =>
         lowerQuery.split(' ').some(word => obj.name.toLowerCase().includes(word))
     );
