@@ -5,12 +5,12 @@ import { AppProvider, useAppState } from "../store/appStore";
 import { useElevenLabsTTS, useRosbridgeSpatial } from "../hooks";
 import { useObjectSearch, useGuidance, useApiStatus } from "../hooks";
 import { api, mockApi } from "../lib/api";
+import { canCallChat, recordChatError, recordChatSuccess, isPaymentErrorBlocked } from "../lib/chatGuard";
 import { mockObjects, mockDetections, findNearbyObjects3D } from "../lib/mockData";
 import {
   TopNav,
   MappingControls,
-  QueryBar,
-  ResultsList,
+  ConversationalAgent,
   GuidancePanel,
   ModeToggle,
   SpatialMap,
@@ -19,10 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { RotateCcw, Navigation } from "lucide-react";
 import type { ObjectLocation } from "../lib/mockData";
-import { mockSpatialData, type Position3D, type SpatialObject } from "../components/SpatialMap";
+import { mockSpatialData, type Position3D } from "../components/SpatialMap";
 
 function rosToThree(point: Position3D): Position3D {
   return { x: point.x, y: point.z, z: -point.y };
@@ -46,12 +44,21 @@ function AppContent() {
     addError,
   } = useAppState();
 
+  const [externalAgentMessages, setExternalAgentMessages] = useState<Array<{ id: string; content: string }>>([]);
+
   // TTS hook (preserved from VoiceInterface)
   const {
     speak,
     isSpeaking,
     isLoading: ttsLoading,
   } = useElevenLabsTTS();
+
+  const addExternalAgentMessage = useCallback((content: string) => {
+    setExternalAgentMessages((prev) => [
+      ...prev,
+      { id: `agent-${Date.now()}-${Math.random().toString(16).slice(2)}`, content },
+    ]);
+  }, []);
 
   // API status hook
   const { setMockMode } = useApiStatus({
@@ -82,7 +89,6 @@ function AppContent() {
   const {
     guidance,
     target: guidanceTarget,
-    isActive: isGuidanceActive,
     startGuidance,
     stopGuidance,
     markFound,
@@ -92,7 +98,7 @@ function AppContent() {
       setGuidance(newGuidance);
     },
     onArrival: (target) => {
-      speak(`You've arrived! Your ${target.name} should be right here.`);
+      addExternalAgentMessage(`You've arrived! Your ${target.name} should be right here.`);
     },
   });
 
@@ -197,38 +203,6 @@ function AppContent() {
     };
   }, [rosbridge.pose, rosbridge.pointCloud, rosbridge.path, rosbridge.objects]);
 
-  const toObjectLocation = useCallback(
-    (obj: SpatialObject): ObjectLocation => {
-      const cameraPos = spatialData.cameraPosition;
-      const dx = obj.position.x - cameraPos.x;
-      const dz = obj.position.z - cameraPos.z;
-      const distanceMeters = Math.sqrt(dx * dx + dz * dz);
-      const angle = Math.atan2(dx, dz) * (180 / Math.PI);
-      const absAngle = Math.abs(angle);
-      const direction =
-        absAngle <= 45
-          ? "in front of you"
-          : absAngle >= 135
-            ? "behind you"
-            : angle > 0
-              ? "to your right"
-              : "to your left";
-
-      return {
-        id: obj.id,
-        name: obj.name,
-        lastSeen: new Date(obj.timestamp).toLocaleString(),
-        timestamp: new Date(obj.timestamp),
-        distance: `${distanceMeters.toFixed(1)} meters`,
-        distanceMeters,
-        direction,
-        bearing: angle,
-        confidence: obj.confidence,
-      };
-    },
-    [spatialData.cameraPosition]
-  );
-
   // Handle guide me
   const handleGuideMe = useCallback(
     async (result: ObjectLocation) => {
@@ -246,6 +220,20 @@ function AppContent() {
         : [];
 
       try {
+        // Avoid spamming Cerebras on errors: cooldown after failures, stop on payment error
+        if (!canCallChat()) {
+          if (isPaymentErrorBlocked()) {
+            addExternalAgentMessage(
+              "The assistant is temporarily unavailable due to a billing issue. Please check your account."
+            );
+          } else {
+            addExternalAgentMessage(
+              `Found your ${result.name}! It's ${result.distance} away, ${result.direction}.`
+            );
+          }
+          return;
+        }
+
         // Call Cerebras API for intelligent response
         console.log("[AppPage] Calling /api/chat with:", {
           query: queryForLlm,
@@ -277,29 +265,32 @@ function AppContent() {
         console.log("[AppPage] API response status:", response.status, response.ok);
 
         if (response.ok) {
+          recordChatSuccess();
           const data = await response.json();
           console.log("[AppPage] Cerebras response:", data);
-          speak(data.response);
+          addExternalAgentMessage(data.response);
         } else {
-          const errorText = await response.text();
+          const errorBody = await response.json().catch(() => ({}));
+          recordChatError(response.status, errorBody as { code?: string });
+          const errorText = JSON.stringify(errorBody);
           console.error("[AppPage] API error:", errorText);
-          speak(`Found your ${result.name}! It's ${result.distance} away, ${result.direction}.`);
+          addExternalAgentMessage(
+            `Found your ${result.name}! It's ${result.distance} away, ${result.direction}.`
+          );
         }
       } catch (error) {
+        recordChatError(500);
         console.error("[AppPage] Fetch error:", error);
-        speak(`Found your ${result.name}! It's ${result.distance} away, ${result.direction}.`);
+        addExternalAgentMessage(
+          `Found your ${result.name}! It's ${result.distance} away, ${result.direction}.`
+        );
       }
     },
-    [setActiveTarget, startGuidance, speak, state.query, spatialData.objects]
+    [setActiveTarget, startGuidance, addExternalAgentMessage, state.query, spatialData.objects]
   );
 
   // State for selected object in map (only used in recall mode)
   const [selectedMapObjectId, setSelectedMapObjectId] = useState<string | null>(null);
-  const [guidingToObjectId, setGuidingToObjectId] = useState<string | null>(null);
-  const [guidanceQuery, setGuidanceQuery] = useState<string | null>(null);
-  const selectedMapObject = selectedMapObjectId
-    ? spatialData.objects.find((o) => o.id === selectedMapObjectId)
-    : null;
 
   // Debug data with mock values
   const debugData = {
@@ -342,7 +333,7 @@ function AppContent() {
             data={spatialData}
             selectedObjectId={state.mode === "recall" ? selectedMapObjectId : null}
             onObjectSelect={state.mode === "recall" ? setSelectedMapObjectId : undefined}
-            guidanceQuery={guidanceQuery}
+            guidanceQuery={guidanceTarget?.id || null}
             guidanceVoiceEnabled={false}
             className="w-full h-full"
           />
@@ -390,152 +381,26 @@ function AppContent() {
               </Card>
             ) : (
               <>
-                {/* Query Bar */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Search Objects</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <QueryBar
-                      onSearch={handleSearch}
-                      isSearching={isSearching}
-                    />
-                  </CardContent>
-                </Card>
-
-                {/* Selected Object Details (from map click) */}
-                {selectedMapObject && (
-                  <Card className="border-slateblue/50">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base flex items-center justify-between">
-                        <span>{selectedMapObject.name}</span>
-                        <Badge
-                          variant={selectedMapObject.confidence > 0.9 ? "success" : "secondary"}
-                        >
-                          {Math.round(selectedMapObject.confidence * 100)}%
-                        </Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="grid grid-cols-3 gap-2 text-sm">
-                        <div className="text-center p-2 bg-space/50 rounded-lg">
-                          <div className="text-denim text-xs">X</div>
-                          <div className="text-eggshell font-mono">
-                            {selectedMapObject.position.x.toFixed(1)}m
-                          </div>
-                        </div>
-                        <div className="text-center p-2 bg-space/50 rounded-lg">
-                          <div className="text-denim text-xs">Y</div>
-                          <div className="text-eggshell font-mono">
-                            {selectedMapObject.position.y.toFixed(1)}m
-                          </div>
-                        </div>
-                        <div className="text-center p-2 bg-space/50 rounded-lg">
-                          <div className="text-denim text-xs">Z</div>
-                          <div className="text-eggshell font-mono">
-                            {selectedMapObject.position.z.toFixed(1)}m
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-xs text-denim">
-                        Last seen: {new Date(selectedMapObject.timestamp).toLocaleString()}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => {
-                            setSelectedMapObjectId(null);
-                            setGuidingToObjectId(null);
-                            setGuidanceQuery(null);
-                          }}
-                        >
-                          <RotateCcw className="h-3 w-3 mr-2" />
-                          Deselect
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="flex-1"
-                          variant={guidingToObjectId === selectedMapObjectId ? "default" : "secondary"}
-                          onClick={() => {
-                            if (!selectedMapObject) return;
-                            setGuidingToObjectId(selectedMapObjectId);
-
-                            // Set the query so the LLM gets the proper context
-                            const searchQuery = `find my ${selectedMapObject.name}`;
-                            setQuery(searchQuery);
-
-                            // Trigger visual guidance path using the specific object ID
-                            setGuidanceQuery(selectedMapObject.id);
-                            setTimeout(() => setGuidanceQuery(null), 100);
-
-                            // Trigger LLM guidance (same as search results)
-                            handleGuideMe(toObjectLocation(selectedMapObject));
-                          }}
-                        >
-                          <Navigation className="h-3 w-3 mr-2" />
-                          {guidingToObjectId === selectedMapObjectId ? "Guiding" : "Guide Me"}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Detected Objects List */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Detected Objects</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                      {spatialData.objects.map((obj) => (
-                        <button
-                          key={obj.id}
-                          onClick={() => setSelectedMapObjectId(obj.id)}
-                          className={`
-                            w-full text-left p-2 rounded-lg transition-colors text-sm
-                            ${selectedMapObjectId === obj.id
-                              ? 'bg-slateblue/30 border border-slateblue'
-                              : 'bg-space/30 hover:bg-space/50 border border-transparent'
-                            }
-                          `}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-eggshell">{obj.name}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {Math.round(obj.confidence * 100)}%
-                            </Badge>
-                          </div>
-                          <div className="text-xs text-denim mt-1">
-                            ({obj.position.x.toFixed(1)}, {obj.position.y.toFixed(1)}, {obj.position.z.toFixed(1)})
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Results */}
-                <ResultsList
-                  results={state.results}
-                  activeTargetId={state.activeTarget?.id}
-                  onGuideMe={handleGuideMe}
-                  isLoading={isSearching}
-                  query={state.query}
-                />
-
-                {/* Guidance Panel */}
-                {isGuidanceActive && (
-                  <GuidancePanel
+                {/* Conversational Agent */}
+                <div className="h-[calc(100vh-200px)]">
+                  <ConversationalAgent
+                    onSearch={handleSearch}
+                    searchResults={state.results}
+                    isSearching={isSearching}
                     guidance={guidance}
                     target={guidanceTarget}
                     onSpeak={handleSpeak}
                     onMarkFound={handleMarkFound}
                     onCancel={handleCancelGuidance}
                     isSpeaking={isSpeaking || ttsLoading}
+                    onGuideMe={handleGuideMe}
+                    externalAgentMessages={externalAgentMessages}
+                    onExternalMessagesHandled={(ids) => {
+                      setExternalAgentMessages((prev) => prev.filter((message) => !ids.includes(message.id)));
+                    }}
                   />
-                )}
+                </div>
+
               </>
             )}
 
@@ -578,10 +443,9 @@ function AppContent() {
         {/* Mobile Layout */}
         <div className="lg:hidden p-4">
           <Tabs defaultValue="map" className="w-full">
-            <TabsList className="w-full grid grid-cols-4 mb-4">
+            <TabsList className="w-full grid grid-cols-3 mb-4">
               <TabsTrigger value="map">Map</TabsTrigger>
-              <TabsTrigger value="controls">Controls</TabsTrigger>
-              <TabsTrigger value="results">Results</TabsTrigger>
+              <TabsTrigger value="controls">Agent</TabsTrigger>
               <TabsTrigger value="debug">Debug</TabsTrigger>
             </TabsList>
 
@@ -590,7 +454,7 @@ function AppContent() {
                 data={spatialData}
                 selectedObjectId={state.mode === "recall" ? selectedMapObjectId : null}
                 onObjectSelect={state.mode === "recall" ? setSelectedMapObjectId : undefined}
-                guidanceQuery={guidanceQuery}
+                guidanceQuery={guidanceTarget?.id || null}
                 guidanceVoiceEnabled={false}
                 className="w-full h-[380px]"
               />
@@ -610,36 +474,31 @@ function AppContent() {
                   </CardContent>
                 </Card>
               ) : (
-                <Card>
-                  <CardContent className="p-4">
-                    <QueryBar
-                      onSearch={handleSearch}
-                      isSearching={isSearching}
-                    />
-                  </CardContent>
-                </Card>
+                <div className="h-[500px]">
+                  <ConversationalAgent
+                    onSearch={handleSearch}
+                    searchResults={state.results}
+                    isSearching={isSearching}
+                    guidance={guidance}
+                    target={guidanceTarget}
+                    onSpeak={handleSpeak}
+                    onMarkFound={handleMarkFound}
+                    onCancel={handleCancelGuidance}
+                    isSpeaking={isSpeaking || ttsLoading}
+                    onGuideMe={handleGuideMe}
+                    externalAgentMessages={externalAgentMessages}
+                    onExternalMessagesHandled={(ids) => {
+                      setExternalAgentMessages((prev) => prev.filter((message) => !ids.includes(message.id)));
+                    }}
+                  />
+                </div>
               )}
             </TabsContent>
 
             <TabsContent value="results" className="space-y-4">
-              <ResultsList
-                results={state.results}
-                activeTargetId={state.activeTarget?.id}
-                onGuideMe={handleGuideMe}
-                isLoading={isSearching}
-                query={state.query}
-              />
-
-              {isGuidanceActive && (
-                <GuidancePanel
-                  guidance={guidance}
-                  target={guidanceTarget}
-                  onSpeak={handleSpeak}
-                  onMarkFound={handleMarkFound}
-                  onCancel={handleCancelGuidance}
-                  isSpeaking={isSpeaking || ttsLoading}
-                />
-              )}
+              <div className="text-sm text-denim text-center py-8">
+                Use the Controls tab to interact with the conversational agent
+              </div>
             </TabsContent>
 
             <TabsContent value="debug">
@@ -683,6 +542,20 @@ function AppContent() {
           </Tabs>
         </div>
       </main>
+
+      {/* Guidance Panel Modal - appears when guidance is active */}
+      {guidance && guidanceTarget && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none">
+          <div className="w-full max-w-md p-4 pb-6 pointer-events-auto">
+            <GuidancePanel
+              guidance={guidance}
+              target={guidanceTarget}
+              onMarkFound={handleMarkFound}
+              onCancel={handleCancelGuidance}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

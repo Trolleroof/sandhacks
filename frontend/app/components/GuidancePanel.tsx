@@ -1,60 +1,31 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
-import { Volume2, Check, X } from "lucide-react";
+import { useRef } from "react";
+import { Check, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { animations } from "../lib/animations";
 import { CompassArrow } from "./CompassArrow";
 import type { GuidanceData, ObjectLocation } from "../lib/mockData";
 
 interface GuidancePanelProps {
   guidance: GuidanceData | null;
   target: ObjectLocation | null;
-  onSpeak: (text: string) => void;
   onMarkFound: () => void;
   onCancel: () => void;
-  isSpeaking?: boolean;
   className?: string;
 }
 
 export function GuidancePanel({
   guidance,
   target,
-  onSpeak,
   onMarkFound,
   onCancel,
-  isSpeaking = false,
   className,
 }: GuidancePanelProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
   const distanceRef = useRef<HTMLSpanElement>(null);
 
-  useEffect(() => {
-    if (panelRef.current && guidance) {
-      animations.fadeIn(panelRef.current);
-    }
-  }, [guidance]);
-
-  useEffect(() => {
-    const distance = guidance?.distance;
-    if (distanceRef.current && distance !== undefined) {
-      animations.countUp(distanceRef.current, distance);
-    }
-  }, [guidance?.distance]);
-
-  useEffect(() => {
-    if (guidance?.arrived && panelRef.current) {
-      animations.successGlow(panelRef.current);
-    }
-  }, [guidance?.arrived]);
-
-  const handleSpeak = useCallback(() => {
-    if (guidance) {
-      onSpeak(guidance.instruction);
-    }
-  }, [guidance, onSpeak]);
+  // Removed all animations to prevent flashing
 
   if (!guidance || !target) {
     return null;
@@ -62,7 +33,6 @@ export function GuidancePanel({
 
   return (
     <Card
-      ref={panelRef}
       className={cn(
         "overflow-hidden",
         guidance.arrived && "ring-2 ring-green-500",
@@ -99,7 +69,7 @@ export function GuidancePanel({
           <CompassArrow
             bearing={guidance.bearing}
             size={100}
-            showPulse={!guidance.arrived}
+            showPulse={false}
           />
 
           {/* Distance display */}
@@ -128,16 +98,6 @@ export function GuidancePanel({
 
         {/* Action buttons */}
         <div className="flex gap-3">
-          <Button
-            variant="outline"
-            onClick={handleSpeak}
-            disabled={isSpeaking}
-            className="flex-1"
-          >
-            <Volume2 className="h-4 w-4 mr-2" />
-            {isSpeaking ? "Speaking..." : "Speak"}
-          </Button>
-
           {guidance.arrived ? (
             <Button onClick={onMarkFound} className="flex-1">
               <Check className="h-4 w-4 mr-2" />

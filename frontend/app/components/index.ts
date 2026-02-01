@@ -10,6 +10,7 @@ export { CompassArrow } from "./CompassArrow";
 export { ResultCard } from "./ResultCard";
 export { ResultsList } from "./ResultsList";
 export { GuidancePanel } from "./GuidancePanel";
+export { ConversationalAgent } from "./ConversationalAgent";
 export { DebugDrawer } from "./DebugDrawer";
 export { CameraStreamPanel } from "./CameraStreamPanel";
 export { TopNav } from "./TopNav";

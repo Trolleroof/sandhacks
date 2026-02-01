@@ -88,8 +88,31 @@ It's about ${obj.distance} away, ${obj.direction}. I'm ${Math.round(obj.confiden
             model: completion.model,
             usage: completion.usage,
         });
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Cerebras API error:", error);
+
+        // Detect payment/quota (402) or rate limit (429) so clients can back off or stop
+        const status =
+            typeof (error as { status?: number }).status === "number"
+                ? (error as { status: number }).status
+                : (error as { statusCode?: number }).statusCode;
+        const message = String(
+            (error as { message?: string }).message ?? (error as { error?: string }).error ?? ""
+        ).toLowerCase();
+
+        if (status === 402 || message.includes("payment") || message.includes("quota") || message.includes("billing")) {
+            return NextResponse.json(
+                { error: "Payment or quota required", code: "PAYMENT_REQUIRED" },
+                { status: 402 }
+            );
+        }
+        if (status === 429 || message.includes("rate limit")) {
+            return NextResponse.json(
+                { error: "Rate limited", code: "RATE_LIMITED" },
+                { status: 429 }
+            );
+        }
+
         return NextResponse.json(
             { error: "Failed to generate response" },
             { status: 500 }
