@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Brain } from "lucide-react";
 import {
   HeroSection,
+  ProblemSection,
   HowItWorksSection,
   PreviewSection,
   TrustSection,
@@ -63,6 +64,7 @@ export default function LandingPage() {
       {/* Main content */}
       <main className="relative z-10">
         <HeroSection onWatchHowItWorks={handleWatchHowItWorks} />
+        <ProblemSection />
         <HowItWorksSection />
         <PreviewSection />
         <TrustSection />

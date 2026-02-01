@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { ArrowRight, Eye, Play } from "lucide-react";
+import { ArrowRight, Eye, MapPin, Search, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { animations } from "../../lib/animations";
 
@@ -23,34 +23,40 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
   return (
     <section
       ref={heroRef}
-      className="relative min-h-[80vh] flex flex-col items-center justify-center text-center px-4 py-20"
+      className="relative min-h-screen flex flex-col items-center justify-center text-center px-4 py-20"
     >
       {/* Background effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-slateblue/20 rounded-full blur-[100px]" />
         <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-denim/15 rounded-full blur-[80px]" />
+        <div className="absolute top-1/2 right-1/3 w-48 h-48 bg-slateblue/10 rounded-full blur-[60px]" />
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto">
-        {/* Badge */}
-        {/*
-        <div className="animate-in inline-flex items-center gap-2 px-4 py-2 rounded-full bg-space border border-slateblue/40 mb-8 opacity-0">
-          <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-sm text-denim">AI-Powered Object Memory</span>
+        {/* Floating icons */}
+        <div className="animate-in opacity-0 flex justify-center gap-6 mb-8">
+          <div className="w-12 h-12 rounded-2xl bg-space/80 border border-slateblue/30 flex items-center justify-center animate-pulse">
+            <MapPin className="h-6 w-6 text-slateblue" />
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-space/80 border border-denim/30 flex items-center justify-center animate-pulse delay-100">
+            <Search className="h-6 w-6 text-denim" />
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-space/80 border border-slateblue/30 flex items-center justify-center animate-pulse delay-200">
+            <Volume2 className="h-6 w-6 text-slateblue" />
+          </div>
         </div>
-        */}
-        
 
-        {/* Title */}
-        <h1 className="animate-in text-5xl sm:text-6xl md:text-7xl font-bold text-eggshell mb-6 opacity-0">
-          Reality Memory
+        {/* Headline */}
+        <h1 className="animate-in text-5xl sm:text-6xl md:text-7xl font-bold text-eggshell mb-6 opacity-0 leading-tight">
+          The physical world{" "}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-slateblue to-denim">
+            forgets.
+          </span>
         </h1>
 
-        {/* Subtitle */}
-        <p className="animate-in text-xl sm:text-2xl text-denim max-w-2xl mx-auto mb-10 opacity-0">
-          Ask where you last saw something.
-          <br />
-          <span className="text-eggshell">Get guided back.</span>
+        {/* Subheadline */}
+        <p className="animate-in text-xl sm:text-2xl text-denim max-w-xl mx-auto mb-10 opacity-0">
+          Reality Memory gives spaces persistent memory—so you don&apos;t have to.
         </p>
 
         {/* CTA Buttons */}
@@ -74,18 +80,18 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
         </div>
 
         {/* Stats */}
-        <div className="animate-in grid grid-cols-3 gap-8 mt-16 max-w-lg mx-auto opacity-0">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-eggshell">50+</div>
-            <div className="text-sm text-denim">Objects tracked</div>
+        <div className="animate-in grid grid-cols-3 gap-12 mt-20 max-w-2xl mx-auto opacity-0">
+          <div className="text-center p-4 rounded-2xl bg-space/30 border border-slateblue/20">
+            <div className="text-4xl font-bold text-eggshell mb-1">55M</div>
+            <div className="text-sm text-denim">Living with dementia</div>
           </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-eggshell">&lt;1s</div>
+          <div className="text-center p-4 rounded-2xl bg-space/30 border border-slateblue/20">
+            <div className="text-4xl font-bold text-eggshell mb-1">&lt;1s</div>
             <div className="text-sm text-denim">Response time</div>
           </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-eggshell">95%</div>
-            <div className="text-sm text-denim">Accuracy</div>
+          <div className="text-center p-4 rounded-2xl bg-space/30 border border-slateblue/20">
+            <div className="text-4xl font-bold text-eggshell mb-1">100%</div>
+            <div className="text-sm text-denim">Local &amp; private</div>
           </div>
         </div>
       </div>

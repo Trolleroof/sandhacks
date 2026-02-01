@@ -4,7 +4,7 @@ import { Cpu, Eye, Zap, Mic } from "lucide-react";
 
 const technologies = [
   { icon: Cpu, name: "VSLAM", description: "Visual SLAM" },
-  { icon: Eye, name: "EyePop", description: "Object Detection" },
+  { icon: Eye, name: "YOLO", description: "Object Detection" },
   { icon: Zap, name: "FastAPI", description: "Backend" },
   { icon: Mic, name: "Voice", description: "Natural Language" },
 ];

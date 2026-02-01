@@ -1,27 +1,27 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Map, Eye, Navigation } from "lucide-react";
+import { Map, Brain, Navigation, ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { animations } from "../../lib/animations";
 
 const steps = [
   {
     icon: Map,
-    title: "Map once",
-    description: "Walk through your space while we learn where objects are.",
+    title: "Map your space",
+    description: "Walk through your environment while our AI learns and catalogs object locations in real-time.",
     color: "from-slateblue to-denim",
   },
   {
-    icon: Eye,
-    title: "We remember objects",
-    description: "AI detects and catalogs every item with spatial coordinates.",
+    icon: Brain,
+    title: "We remember",
+    description: "Every object is stored with precise spatial coordinates—a persistent memory for your space.",
     color: "from-denim to-slateblue",
   },
   {
     icon: Navigation,
-    title: "Ask and get guided",
-    description: 'Just ask "Find my keys" and get voice-guided directions.',
+    title: "Ask & find",
+    description: '"Where are my keys?" Get instant voice-guided directions to any remembered object.',
     color: "from-slateblue via-denim to-slateblue",
   },
 ];
@@ -35,7 +35,7 @@ export function HowItWorksSection() {
         entries.forEach((entry) => {
           if (entry.isIntersecting && sectionRef.current) {
             const cards = sectionRef.current.querySelectorAll(".step-card");
-            animations.staggerCards(cards);
+            animations.staggerCards(Array.from(cards));
             observer.disconnect();
           }
         });
@@ -51,55 +51,54 @@ export function HowItWorksSection() {
   }, []);
 
   return (
-    <section
-      ref={sectionRef}
-      id="how-it-works"
-      className="py-24 px-4"
-    >
-      <div className="max-w-6xl mx-auto">
-        {/* Section header */}
+    <section ref={sectionRef} id="how-it-works" className="min-h-screen py-20 px-4 flex flex-col items-center justify-center">
+      <div className="max-w-6xl mx-auto w-full">
+        {/* Header */}
         <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-eggshell mb-4">
+          <h2 className="text-4xl sm:text-5xl font-bold text-eggshell mb-4">
             How It Works
           </h2>
-          <p className="text-lg text-denim max-w-2xl mx-auto">
-            Three simple steps to never lose track of your belongings again
+          <p className="text-xl text-denim">
+            Three steps to persistent spatial memory.
           </p>
         </div>
 
-        {/* Steps grid */}
+        {/* Steps - larger cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {steps.map((step, index) => (
             <Card
               key={step.title}
-              className="step-card opacity-0 hover:border-slateblue/60 transition-all hover:-translate-y-1"
+              className="step-card opacity-0 hover:border-slateblue/60 transition-all hover:-translate-y-2"
             >
-              <CardContent className="p-8 text-center">
+              <CardContent className="p-10 text-center">
                 {/* Step number */}
-                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-space text-denim text-sm font-medium mb-6">
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-space text-denim text-lg font-bold mb-6">
                   {index + 1}
                 </div>
 
                 {/* Icon */}
                 <div
-                  className={`inline-flex items-center justify-center w-16 h-16 rounded-[18px] bg-gradient-to-br ${step.color} mb-6`}
+                  className={`inline-flex items-center justify-center w-20 h-20 rounded-[20px] bg-gradient-to-br ${step.color} mb-6`}
                 >
-                  <step.icon className="h-8 w-8 text-eggshell" />
+                  <step.icon className="h-10 w-10 text-eggshell" />
                 </div>
 
-                {/* Content */}
                 <h3 className="text-xl font-semibold text-eggshell mb-3">
                   {step.title}
                 </h3>
-                <p className="text-denim">{step.description}</p>
+                <p className="text-base text-denim leading-relaxed">{step.description}</p>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* Connection line (desktop only) */}
-        <div className="hidden md:block relative h-0 -mt-[200px] mb-[200px]">
-          <div className="absolute top-0 left-1/6 right-1/6 h-0.5 bg-gradient-to-r from-transparent via-slateblue/30 to-transparent" />
+        {/* Connector arrows (desktop only) */}
+        <div className="hidden md:flex justify-center items-center gap-4 mt-8">
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slateblue/50 to-slateblue/50" />
+          <ArrowRight className="h-5 w-5 text-slateblue" />
+          <div className="flex-1 h-px bg-gradient-to-r from-slateblue/50 via-slateblue/50 to-slateblue/50" />
+          <ArrowRight className="h-5 w-5 text-slateblue" />
+          <div className="flex-1 h-px bg-gradient-to-r from-slateblue/50 via-slateblue/50 to-transparent" />
         </div>
       </div>
     </section>
