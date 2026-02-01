@@ -19,3 +19,11 @@ cloud_web_bridge_node:
     # --------------- statistical outlier removal (active when enable_outlier: true)
     outlier_mean_k:          50
     outlier_stddev_thresh:  1.0
+
+    # --------------- object tracking & deduplication -------------------------
+    enable_deduplication: true
+    proximity_threshold: 0.10        # metres - objects within this are "the same" (tighter for less duplicates)
+    movement_threshold: 0.15         # metres - min movement to update position
+    min_confidence: 0.7              # 70% - reject low-confidence detections
+    min_detections_to_publish: 2     # require N detections before publishing (reduces false positives)
+    update_debounce_seconds: 0.5     # seconds - min time between position updates (prevents jitter)
