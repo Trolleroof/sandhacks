@@ -22,7 +22,7 @@ export function FinalCTA() {
 
         <Button asChild size="lg" className="text-xl px-12 py-7 mb-12 bg-amber hover:bg-amber-muted text-ink font-semibold shadow-lg shadow-amber/20">
           <Link href="/app">
-            Try Reality Memory
+            Try Recall
           </Link>
         </Button>
 

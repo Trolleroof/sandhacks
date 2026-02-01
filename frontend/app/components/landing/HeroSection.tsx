@@ -23,6 +23,7 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
   return (
     <section
       ref={heroRef}
+      id="hero"
       className="relative min-h-screen flex items-center px-6 md:px-12 lg:px-20 py-24"
     >
       {/* Subtle background - less generic than centered glowing orbs */}
@@ -45,14 +46,14 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
 
             {/* Headline - left-aligned, more human */}
             <h1 className="animate-in text-4xl sm:text-5xl lg:text-6xl font-semibold text-eggshell mb-6 opacity-0 leading-[1.1] font-serif">
-              Your home now
-              <br />
-              <span className="text-amber">has a memory</span>
+              The physical world forgets.
+              
+              <span className="text-amber"> We don't.</span>
             </h1>
 
             {/* Subheadline - warmer, more direct */}
             <p className="animate-in text-lg sm:text-xl text-denim max-w-lg mb-8 opacity-0 leading-relaxed">
-              Reality Memory gives spaces persistent memory—so you don’t have to.
+            Recall gives spaces persistent memory so you don't have to.
             </p>
 
             {/* CTA Buttons - solid primary, subtle secondary */}
@@ -253,14 +254,16 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
           </div>
         </div>
       </div>
-
+      
       {/* Scroll indicator - simpler */}
+      {/*
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
         <div className="flex flex-col items-center gap-2 text-denim/50">
           <span className="text-xs tracking-wider uppercase">Scroll</span>
           <div className="w-px h-8 bg-gradient-to-b from-denim/50 to-transparent" />
         </div>
       </div>
+      */}
     </section>
   );
 }

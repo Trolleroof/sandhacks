@@ -31,7 +31,7 @@ export function PreviewSection() {
               </div>
               <div className="flex-1 flex justify-center">
                 <div className="px-4 py-1 rounded-[8px] bg-space text-xs text-denim">
-                  realitymemory.ai
+                  recall.ai
                 </div>
               </div>
             </div>

@@ -6,7 +6,7 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-// Animation utilities for Reality Memory UI
+// Animation utilities for Recall UI
 export const animations = {
   /**
    * Hero section reveal animation

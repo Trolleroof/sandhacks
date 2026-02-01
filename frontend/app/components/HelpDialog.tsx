@@ -40,7 +40,7 @@ const steps = [
     {
         icon: Navigation,
         title: "4. Get Guided",
-        description: "Reality Memory tells you exactly where to look — distance, direction, and landmarks.",
+        description: "Recall tells you exactly where to look — distance, direction, and landmarks.",
         color: "text-slateblue",
     },
     {
@@ -68,7 +68,7 @@ export function HelpDialog({ trigger, open, onOpenChange }: HelpDialogProps) {
                         <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-slateblue to-denim flex items-center justify-center">
                             <Brain className="h-6 w-6 text-eggshell" />
                         </div>
-                        How Reality Memory Works
+                        How Recall Works
                     </DialogTitle>
                     <DialogDescription>
                         Your AI-powered spatial memory assistant for finding lost objects

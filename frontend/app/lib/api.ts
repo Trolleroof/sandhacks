@@ -1,4 +1,4 @@
-// API client for Reality Memory backend
+// API client for Recall backend
 
 import type { ObjectLocation, GuidanceData } from "./mockData";
 import { findObject, getMockGuidance, mockObjects, mockDetections } from "./mockData";
