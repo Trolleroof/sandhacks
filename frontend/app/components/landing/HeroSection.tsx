@@ -54,18 +54,6 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
             Reality Memory gives spaces persistent memory—so you don't have to.
             </p>
 
-            {/* Stats inline - feels more editorial than card-based */}
-            <div className="animate-in opacity-0 flex flex-wrap gap-x-8 gap-y-2 mb-10 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-amber font-semibold">55M+</span>
-                <span className="text-denim">people living with dementia</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-amber font-semibold">100%</span>
-                <span className="text-denim">private & local</span>
-              </div>
-            </div>
-
             {/* CTA Buttons - solid primary, subtle secondary */}
             <div className="animate-in flex flex-col sm:flex-row items-start gap-4 opacity-0">
               <Button
