@@ -5,7 +5,7 @@ import { AppProvider, useAppState } from "../store/appStore";
 import { useElevenLabsTTS, useRosbridgeSpatial } from "../hooks";
 import { useObjectSearch, useGuidance, useApiStatus } from "../hooks";
 import { api, mockApi } from "../lib/api";
-import { mockObjects, mockDetections } from "../lib/mockData";
+import { mockObjects, mockDetections, findNearbyObjects3D } from "../lib/mockData";
 import {
   TopNav,
   MappingControls,
@@ -239,6 +239,12 @@ function AppContent() {
         ? state.query
         : `find ${result.name}`;
 
+      // Find the corresponding SpatialObject and calculate nearby objects
+      const targetSpatialObject = spatialData.objects.find((obj) => obj.id === result.id);
+      const nearbyObjects = targetSpatialObject
+        ? findNearbyObjects3D(targetSpatialObject, spatialData.objects, 1.5)
+        : [];
+
       try {
         // Call Cerebras API for intelligent response
         console.log("[AppPage] Calling /api/chat with:", {
@@ -249,6 +255,7 @@ function AppContent() {
             distance: result.distance,
             direction: result.direction,
             confidence: result.confidence,
+            nearbyObjects,
           },
         });
         const response = await fetch("/api/chat", {
@@ -262,6 +269,7 @@ function AppContent() {
               distance: result.distance,
               direction: result.direction,
               confidence: result.confidence,
+              nearbyObjects,
             },
           }),
         });
@@ -282,7 +290,7 @@ function AppContent() {
         speak(`Found your ${result.name}! It's ${result.distance} away, ${result.direction}.`);
       }
     },
-    [setActiveTarget, startGuidance, speak, state.query]
+    [setActiveTarget, startGuidance, speak, state.query, spatialData.objects]
   );
 
   // State for selected object in map (only used in recall mode)

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useSpeechRecognition, useElevenLabsTTS } from "../hooks";
+import { findNearbyObjects, mockObjects as allMockObjects } from "../lib/mockData";
 
 interface ObjectLocation {
     id: string;
@@ -139,8 +140,11 @@ export function VoiceInterface() {
             setResult(found);
 
             try {
+                // Calculate nearby objects if we found the target
+                const nearbyObjects = found ? findNearbyObjects(found, allMockObjects, 1.5) : [];
+
                 // Call Cerebras API to generate intelligent response
-                console.log("[VoiceInterface] Calling /api/chat with:", { query: searchQuery, objectData: found });
+                console.log("[VoiceInterface] Calling /api/chat with:", { query: searchQuery, objectData: found, nearbyObjects });
                 const response = await fetch("/api/chat", {
                     method: "POST",
                     headers: {
@@ -154,6 +158,7 @@ export function VoiceInterface() {
                             distance: found.distance,
                             direction: found.direction,
                             confidence: found.confidence,
+                            nearbyObjects,
                         } : null,
                     }),
                 });

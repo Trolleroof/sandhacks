@@ -18,12 +18,18 @@ If you can't find something, be encouraging and helpful - maybe suggest similar 
 
 Keep it short and sweet (1-2 sentences max) since this is for voice. Sound human and friendly, not like a GPS or instruction manual. Use casual language and be warm!`;
 
+interface NearbyObject {
+    name: string;
+    distance: number;
+}
+
 interface ObjectData {
     name: string;
     lastSeen: string;
     distance: string;
     direction: string;
     confidence: number;
+    nearbyObjects?: NearbyObject[];
 }
 
 export async function POST(request: NextRequest) {
@@ -43,9 +49,18 @@ export async function POST(request: NextRequest) {
         if (objectData) {
             const obj = objectData as ObjectData;
             userMessage += `\n\nGreat news - I found their ${obj.name}! Here's what I know:
-It's about ${obj.distance} away, ${obj.direction}. I'm ${Math.round(obj.confidence * 100)}% sure this is it. Last spotted ${obj.lastSeen}.
+It's about ${obj.distance} away, ${obj.direction}. I'm ${Math.round(obj.confidence * 100)}% sure this is it. Last spotted ${obj.lastSeen}.`;
 
-Give them a warm, friendly response to help them find it. Make it conversational and natural!`;
+            // Add nearby objects context if available
+            if (obj.nearbyObjects && obj.nearbyObjects.length > 0) {
+                userMessage += `\n\nContext: `;
+                const nearbyDescriptions = obj.nearbyObjects.map(
+                    (nearby) => `their ${nearby.name} is ${nearby.distance.toFixed(1)}m from the ${obj.name}`
+                );
+                userMessage += nearbyDescriptions.join(", and ") + ". These nearby objects might help locate it.";
+            }
+
+            userMessage += `\n\nGive them a warm, friendly response to help them find it. Make it conversational and natural!`;
         } else {
             userMessage += `\n\nHmm, I couldn't find what they're looking for in my memory. Help them out with a friendly, encouraging response. Maybe ask if they meant something else or suggest what we do have.`;
         }

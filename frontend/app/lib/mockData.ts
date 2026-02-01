@@ -242,3 +242,53 @@ export function searchObjects(query: string): ObjectLocation[] {
       objectName.includes(obj.name.toLowerCase())
   );
 }
+
+// Calculate 3D Euclidean distance between two points
+export function calculateDistance3D(
+  pos1: { x: number; y: number; z: number },
+  pos2: { x: number; y: number; z: number }
+): number {
+  const dx = pos2.x - pos1.x;
+  const dy = pos2.y - pos1.y;
+  const dz = pos2.z - pos1.z;
+  return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+export interface NearbyObjectInfo {
+  name: string;
+  distance: number;
+}
+
+// Find nearby objects within a threshold distance
+export function findNearbyObjects(
+  targetObject: ObjectLocation,
+  allObjects: ObjectLocation[],
+  threshold: number = 1.5
+): NearbyObjectInfo[] {
+  return allObjects
+    .filter((obj) => obj.id !== targetObject.id) // Exclude the target object itself
+    .map((obj) => ({
+      name: obj.name,
+      distance: Math.abs(obj.distanceMeters - targetObject.distanceMeters), // Approximate distance between objects
+    }))
+    .filter((obj) => obj.distance <= threshold) // Only objects within threshold
+    .sort((a, b) => a.distance - b.distance) // Sort by distance ascending
+    .slice(0, 2); // Return top 2 nearest objects
+}
+
+// Find nearby objects using 3D positions
+export function findNearbyObjects3D<T extends { id: string; name: string; position: { x: number; y: number; z: number } }>(
+  targetObject: T,
+  allObjects: T[],
+  threshold: number = 1.5
+): NearbyObjectInfo[] {
+  return allObjects
+    .filter((obj) => obj.id !== targetObject.id) // Exclude the target object itself
+    .map((obj) => ({
+      name: obj.name,
+      distance: calculateDistance3D(targetObject.position, obj.position),
+    }))
+    .filter((obj) => obj.distance <= threshold) // Only objects within threshold
+    .sort((a, b) => a.distance - b.distance) // Sort by distance ascending
+    .slice(0, 2); // Return top 2 nearest objects
+}
