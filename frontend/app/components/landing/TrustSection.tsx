@@ -1,25 +1,19 @@
 "use client";
 
-import { Shield, Clock, Eye, Lock } from "lucide-react";
-
 const features = [
   {
-    icon: Shield,
     title: "Memory, not surveillance",
     description: "We remember locations, not behaviors. Your privacy is paramount.",
   },
   {
-    icon: Clock,
     title: "Last known location",
     description: "Only the most recent timestamp and position are stored.",
   },
   {
-    icon: Eye,
     title: "On-device processing",
     description: "Object detection happens locally on your device.",
   },
   {
-    icon: Lock,
     title: "No cloud storage",
     description: "Your spatial data never leaves your local network.",
   },
@@ -46,9 +40,6 @@ export function TrustSection() {
               key={feature.title}
               className="text-center p-6 rounded-[18px] bg-space/30 border border-slateblue/20 hover:border-slateblue/40 transition-colors"
             >
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-[14px] bg-amber/20 mb-4">
-                <feature.icon className="h-6 w-6 text-amber" />
-              </div>
               <h3 className="text-lg font-semibold text-eggshell mb-2 font-serif">
                 {feature.title}
               </h3>
