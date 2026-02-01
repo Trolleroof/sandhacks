@@ -61,6 +61,17 @@ export const mockObjects: ObjectLocation[] = [
     confidence: 0.87,
   },
   {
+    id: "wallet_001",
+    name: "wallet",
+    lastSeen: "8 minutes ago",
+    timestamp: new Date(Date.now() - 8 * 60 * 1000),
+    distance: "2.6 meters",
+    distanceMeters: 2.6,
+    direction: "to your left, on the hallway table",
+    bearing: -70,
+    confidence: 0.89,
+  },
+  {
     id: "backpack_001",
     name: "backpack",
     lastSeen: "1 hour ago",
@@ -70,6 +81,17 @@ export const mockObjects: ObjectLocation[] = [
     direction: "to your right, by the chair",
     bearing: 90,
     confidence: 0.91,
+  },
+  {
+    id: "earbuds_001",
+    name: "earbuds",
+    lastSeen: "12 minutes ago",
+    timestamp: new Date(Date.now() - 12 * 60 * 1000),
+    distance: "4.4 meters",
+    distanceMeters: 4.4,
+    direction: "behind you, on the shelf",
+    bearing: 160,
+    confidence: 0.86,
   },
   {
     id: "laptop_001",
@@ -93,6 +115,61 @@ export const mockObjects: ObjectLocation[] = [
     bearing: 45,
     confidence: 0.95,
   },
+  {
+    id: "glasses_001",
+    name: "glasses",
+    lastSeen: "25 minutes ago",
+    timestamp: new Date(Date.now() - 25 * 60 * 1000),
+    distance: "3.9 meters",
+    distanceMeters: 3.9,
+    direction: "in front of you, on the side table",
+    bearing: 15,
+    confidence: 0.88,
+  },
+  {
+    id: "watch_001",
+    name: "watch",
+    lastSeen: "40 minutes ago",
+    timestamp: new Date(Date.now() - 40 * 60 * 1000),
+    distance: "1.9 meters",
+    distanceMeters: 1.9,
+    direction: "to your right, by the lamp",
+    bearing: 60,
+    confidence: 0.84,
+  },
+  {
+    id: "charger_001",
+    name: "phone charger",
+    lastSeen: "55 minutes ago",
+    timestamp: new Date(Date.now() - 55 * 60 * 1000),
+    distance: "2.2 meters",
+    distanceMeters: 2.2,
+    direction: "to your left, near the outlet",
+    bearing: -30,
+    confidence: 0.82,
+  },
+  {
+    id: "id_card_001",
+    name: "ID card",
+    lastSeen: "1 hour ago",
+    timestamp: new Date(Date.now() - 60 * 60 * 1000),
+    distance: "5.6 meters",
+    distanceMeters: 5.6,
+    direction: "behind you, on the counter",
+    bearing: 175,
+    confidence: 0.8,
+  },
+  {
+    id: "umbrella_001",
+    name: "umbrella",
+    lastSeen: "2 hours ago",
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    distance: "6.3 meters",
+    distanceMeters: 6.3,
+    direction: "to your right, near the door",
+    bearing: 95,
+    confidence: 0.83,
+  },
 ];
 
 // Mock guidance generator
@@ -110,8 +187,8 @@ export function getMockGuidance(target: ObjectLocation): GuidanceData {
 // Mock detections for debug panel
 export const mockDetections: Detection[] = [
   { id: "det_001", label: "water bottle", confidence: 0.94, timestamp: new Date() },
-  { id: "det_002", label: "keys", confidence: 0.87, timestamp: new Date(Date.now() - 5000) },
-  { id: "det_003", label: "laptop", confidence: 0.98, timestamp: new Date(Date.now() - 10000) },
+  { id: "det_002", label: "wallet", confidence: 0.89, timestamp: new Date(Date.now() - 5000) },
+  { id: "det_003", label: "keys", confidence: 0.87, timestamp: new Date(Date.now() - 10000) },
 ];
 
 // Find object in mock database (preserved from VoiceInterface)

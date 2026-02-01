@@ -27,10 +27,20 @@ interface RosPose {
   orientation: VslamQuaternion;
 }
 
+// Detected object from YOLO/camera
+export interface DetectedObject {
+  id: string;
+  name: string;
+  position: VslamVector3;
+  confidence: number;
+  timestamp: string;
+}
+
 interface RosbridgeSpatialState {
   pose: RosPose | null;
   pointCloud: VslamVector3[];
   path: VslamVector3[];
+  objects: DetectedObject[];
   status: ConnectionStatus;
   error: string | null;
 }
@@ -44,6 +54,7 @@ const DEFAULT_STATE: RosbridgeSpatialState = {
   pose: null,
   pointCloud: [],
   path: [],
+  objects: [],
   status: "idle",
   error: null,
 };
@@ -203,6 +214,7 @@ export function useRosbridgeSpatial({ url, enabled = true }: RosbridgeSpatialOpt
       socket.send(JSON.stringify({ op: "subscribe", topic: "/web/pose" }));
       socket.send(JSON.stringify({ op: "subscribe", topic: "/web/pointcloud" }));
       socket.send(JSON.stringify({ op: "subscribe", topic: "/web/path" }));
+      socket.send(JSON.stringify({ op: "subscribe", topic: "/web/objects" }));
     };
 
     socket.onerror = () => {
@@ -250,6 +262,33 @@ export function useRosbridgeSpatial({ url, enabled = true }: RosbridgeSpatialOpt
           setState((prev) => ({ ...prev, path: points }));
         }
       }
+
+      // Handle detected objects and camera position from YOLO/camera
+      if (parsed.topic === "/web/objects") {
+        const objPayload = payload as {
+          objects?: DetectedObject[];
+          cameraPosition?: VslamVector3;
+        };
+        const objects = objPayload?.objects;
+        const cameraPos = objPayload?.cameraPosition;
+
+        if (objects && Array.isArray(objects)) {
+          console.log("[Rosbridge] Received objects:", objects.length);
+          setState((prev) => ({ ...prev, objects }));
+        }
+
+        // Also update pose with camera position if provided
+        if (cameraPos && isVector3(cameraPos)) {
+          console.log("[Rosbridge] Received camera position:", cameraPos);
+          setState((prev) => ({
+            ...prev,
+            pose: {
+              position: cameraPos,
+              orientation: prev.pose?.orientation ?? { x: 0, y: 0, z: 0, w: 1 },
+            },
+          }));
+        }
+      }
     };
 
     return () => {
@@ -258,6 +297,7 @@ export function useRosbridgeSpatial({ url, enabled = true }: RosbridgeSpatialOpt
         socket.send(JSON.stringify({ op: "unsubscribe", topic: "/web/pose" }));
         socket.send(JSON.stringify({ op: "unsubscribe", topic: "/web/pointcloud" }));
         socket.send(JSON.stringify({ op: "unsubscribe", topic: "/web/path" }));
+        socket.send(JSON.stringify({ op: "unsubscribe", topic: "/web/objects" }));
       }
       socket.close();
     };
@@ -267,6 +307,7 @@ export function useRosbridgeSpatial({ url, enabled = true }: RosbridgeSpatialOpt
     pose: state.pose,
     pointCloud: state.pointCloud,
     path: state.path,
+    objects: state.objects,
     status: state.status,
     error: state.error,
   };

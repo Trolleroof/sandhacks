@@ -5,6 +5,19 @@ import { Map, Brain, Navigation, ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { animations } from "../../lib/animations";
 
+// Pre-generated point cloud positions to avoid hydration mismatch
+// (Math.random() produces different values on server vs client)
+const POINT_CLOUD_DOTS = [
+  { cx: 45, cy: 23 }, { cx: 167, cy: 98 }, { cx: 12, cy: 67 }, { cx: 189, cy: 42 },
+  { cx: 78, cy: 134 }, { cx: 134, cy: 15 }, { cx: 56, cy: 89 }, { cx: 23, cy: 112 },
+  { cx: 156, cy: 67 }, { cx: 89, cy: 45 }, { cx: 34, cy: 78 }, { cx: 178, cy: 123 },
+  { cx: 67, cy: 34 }, { cx: 145, cy: 89 }, { cx: 12, cy: 145 }, { cx: 98, cy: 12 },
+  { cx: 123, cy: 67 }, { cx: 45, cy: 123 }, { cx: 189, cy: 78 }, { cx: 67, cy: 56 },
+  { cx: 156, cy: 134 }, { cx: 23, cy: 45 }, { cx: 112, cy: 98 }, { cx: 78, cy: 23 },
+  { cx: 34, cy: 134 }, { cx: 145, cy: 45 }, { cx: 89, cy: 112 }, { cx: 167, cy: 34 },
+  { cx: 56, cy: 67 }, { cx: 123, cy: 145 },
+];
+
 const steps = [
   {
     icon: Map,
@@ -112,6 +125,45 @@ export function HowItWorksSection() {
                         fill="#D4A574"
                         className="point-cloud-dot"
                         style={{ animationDelay: `${i * 50}ms` }}
+                  {POINT_CLOUD_DOTS.map((dot, i) => (
+                    <circle
+                      key={`dot-${i}`}
+                      cx={dot.cx}
+                      cy={dot.cy}
+                      r="1.5"
+                      fill="#D4A574"
+                      className="point-cloud-dot"
+                      style={{ animationDelay: `${i * 50}ms` }}
+                    />
+                  ))}
+                </svg>
+              )}
+
+              {/* Knowledge graph visualization for Step 2 */}
+              {index === 1 && (
+                <svg
+                  className="absolute inset-0 w-full h-full opacity-25 pointer-events-none"
+                  viewBox="0 0 200 150"
+                  preserveAspectRatio="xMidYMid slice"
+                >
+                  <g className="neural-lines" stroke="#D4A574" strokeWidth="1">
+                    {[
+                      { x1: 30, y1: 30, x2: 70, y2: 20, delay: 0 },
+                      { x1: 70, y1: 20, x2: 120, y2: 35, delay: 150 },
+                      { x1: 120, y1: 35, x2: 160, y2: 25, delay: 300 },
+                      { x1: 30, y1: 30, x2: 50, y2: 75, delay: 450 },
+                      { x1: 50, y1: 75, x2: 100, y2: 90, delay: 600 },
+                      { x1: 100, y1: 90, x2: 150, y2: 80, delay: 750 },
+                      { x1: 120, y1: 35, x2: 100, y2: 90, delay: 900 },
+                    ].map((line, i) => (
+                      <line
+                        key={`line-${i}`}
+                        x1={line.x1}
+                        y1={line.y1}
+                        x2={line.x2}
+                        y2={line.y2}
+                        className="neural-line-draw"
+                        style={{ animationDelay: `${line.delay}ms` }}
                       />
                     ))}
                   </g>
