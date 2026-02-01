@@ -41,6 +41,15 @@ static const std::vector<std::string> LABEL_MAP = {
     "scissors",      "teddy bear",   "hair drier",    "toothbrush"
 };
 
+// COCO class IDs for objects people commonly forget or leave behind (portable items)
+static const std::unordered_set<int> FORGETTABLE_CLASS_IDS = {
+    24, 25, 26, 27, 28,   // backpack, umbrella, handbag, tie, suitcase
+    39, 40, 41,           // bottle, wine glass, cup
+    63, 64, 65, 66, 67,   // laptop, mouse, remote, keyboard, cell phone
+    73, 74,               // book, clock
+    76, 77, 78, 79        // scissors, teddy bear, hair drier, toothbrush
+};
+
 class SpatialDetectionNode : public rclcpp::Node
 {
 public:
@@ -111,14 +120,18 @@ public:
         startTime = now;
       }
 
-      // Process detections — annotate frames and build JSON payload
+      // Process detections — annotate frames and build JSON payload (forgettable items only)
       std::ostringstream detJson;
       detJson << "[";
       const auto& detections = inDet->detections;
+      bool firstInJson = true;
 
       for (size_t i = 0; i < detections.size(); ++i) {
         const auto& det = detections[i];
-        if (i > 0) detJson << ",";
+        if (FORGETTABLE_CLASS_IDS.find(det.label) == FORGETTABLE_CLASS_IDS.end())
+          continue;
+        if (!firstInJson) detJson << ",";
+        firstInJson = false;
 
         // --- depth-frame bounding box -----------------------------------------
         auto roi = det.boundingBoxMapping.roi;
