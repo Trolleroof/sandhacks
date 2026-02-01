@@ -27,6 +27,7 @@ export function FinalCTA() {
         </Button>
 
         {/* Trust badges */}
+        {/*}
         <div className="flex flex-wrap justify-center gap-8">
           <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-space/50 border border-slateblue/20">
             <span className="text-denim">Privacy-first</span>
@@ -35,6 +36,7 @@ export function FinalCTA() {
             <span className="text-denim">Works locally</span>
           </div>
         </div>
+        */}
       </div>
     </section>
   );
