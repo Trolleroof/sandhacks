@@ -119,7 +119,7 @@ public:
     declare_parameter("outlier_mean_k", 50);
     declare_parameter("outlier_stddev_thresh", 1.0);
     declare_parameter("proximity_threshold", 0.10);
-    declare_parameter("movement_threshold", 0.15);
+    declare_parameter("movement_threshold", 0.5);
     declare_parameter("enable_deduplication", true);
     declare_parameter("min_confidence", 0.7);
     declare_parameter("min_detections_to_publish", 2);
