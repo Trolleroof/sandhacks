@@ -19,7 +19,7 @@ export function TechStrip() {
               key={tech.name}
               className="flex items-center gap-3 opacity-60 hover:opacity-100 transition-opacity"
             >
-              <tech.icon className="h-5 w-5 text-denim" />
+              <tech.icon className="h-5 w-5 text-amber" />
               <div className="flex flex-col">
                 <span className="text-sm font-medium text-eggshell">
                   {tech.name}

@@ -10,19 +10,19 @@ const steps = [
     icon: Map,
     title: "Map your space",
     description: "Walk through your environment while our AI learns and catalogs object locations in real-time.",
-    color: "from-slateblue to-denim",
+    color: "from-slateblue via-amber to-denim",
   },
   {
     icon: Brain,
     title: "We remember",
     description: "Every object is stored with precise spatial coordinates—a persistent memory for your space.",
-    color: "from-denim to-slateblue",
+    color: "from-amber to-slateblue",
   },
   {
     icon: Navigation,
     title: "Ask & find",
     description: '"Where are my keys?" Get instant voice-guided directions to any remembered object.',
-    color: "from-slateblue via-denim to-slateblue",
+    color: "from-slateblue via-amber to-denim",
   },
 ];
 
@@ -55,7 +55,7 @@ export function HowItWorksSection() {
       <div className="max-w-6xl mx-auto w-full">
         {/* Header */}
         <div className="text-center mb-16">
-          <h2 className="text-4xl sm:text-5xl font-bold text-eggshell mb-4">
+          <h2 className="text-4xl sm:text-5xl font-semibold text-eggshell mb-4 font-serif">
             How It Works
           </h2>
           <p className="text-xl text-denim">
@@ -72,7 +72,7 @@ export function HowItWorksSection() {
             >
               <CardContent className="p-10 text-center">
                 {/* Step number */}
-                <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-space text-denim text-lg font-bold mb-6">
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-space text-amber text-lg font-bold mb-6">
                   {index + 1}
                 </div>
 
@@ -83,7 +83,7 @@ export function HowItWorksSection() {
                   <step.icon className="h-10 w-10 text-eggshell" />
                 </div>
 
-                <h3 className="text-xl font-semibold text-eggshell mb-3">
+                <h3 className="text-xl font-semibold text-eggshell mb-3 font-serif">
                   {step.title}
                 </h3>
                 <p className="text-base text-denim leading-relaxed">{step.description}</p>

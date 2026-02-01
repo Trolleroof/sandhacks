@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { ArrowRight, Eye, MapPin, Search, Volume2 } from "lucide-react";
+import { ArrowRight, Play, MapPin, Mic, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { animations } from "../../lib/animations";
 
@@ -23,83 +23,262 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
   return (
     <section
       ref={heroRef}
-      className="relative min-h-screen flex flex-col items-center justify-center text-center px-4 py-20"
+      className="relative min-h-screen flex items-center px-6 md:px-12 lg:px-20 py-24"
     >
-      {/* Background effects */}
+      {/* Subtle background - less generic than centered glowing orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-slateblue/20 rounded-full blur-[100px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-denim/15 rounded-full blur-[80px]" />
-        <div className="absolute top-1/2 right-1/3 w-48 h-48 bg-slateblue/10 rounded-full blur-[60px]" />
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-slateblue/8 to-transparent" />
+        <div className="absolute bottom-0 left-0 w-1/3 h-1/2 bg-gradient-to-tr from-amber/5 to-transparent" />
       </div>
 
-      <div className="relative z-10 max-w-4xl mx-auto">
-        {/* Floating icons */}
-        <div className="animate-in opacity-0 flex justify-center gap-6 mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-space/80 border border-slateblue/30 flex items-center justify-center animate-pulse">
-            <MapPin className="h-6 w-6 text-slateblue" />
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-space/80 border border-denim/30 flex items-center justify-center animate-pulse delay-100">
-            <Search className="h-6 w-6 text-denim" />
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-space/80 border border-slateblue/30 flex items-center justify-center animate-pulse delay-200">
-            <Volume2 className="h-6 w-6 text-slateblue" />
-          </div>
-        </div>
+      <div className="relative z-10 w-full max-w-7xl mx-auto">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+          {/* Left side - Copy */}
+          <div className="text-left">
+            {/* Small label - more grounded than floating icons */}
+            {/*
+            <div className="animate-in opacity-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-space/60 border border-slateblue/30 mb-8">
+              <span className="w-2 h-2 rounded-full bg-sage animate-pulse" />
+              <span className="text-sm text-denim">For people & caregivers</span>
+            </div>
+            */}
 
-        {/* Headline */}
-        <h1 className="animate-in text-5xl sm:text-6xl md:text-7xl font-bold text-eggshell mb-6 opacity-0 leading-tight">
-          The physical world{" "}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-slateblue to-denim">
-            forgets.
-          </span>
-        </h1>
+            {/* Headline - left-aligned, more human */}
+            <h1 className="animate-in text-4xl sm:text-5xl lg:text-6xl font-semibold text-eggshell mb-6 opacity-0 leading-[1.1] font-serif">
+              Your home now
+              <br />
+              <span className="text-amber">has a memory</span>
+            </h1>
 
-        {/* Subheadline */}
-        <p className="animate-in text-xl sm:text-2xl text-denim max-w-xl mx-auto mb-10 opacity-0">
-          Reality Memory gives spaces persistent memory—so you don&apos;t have to.
-        </p>
+            {/* Subheadline - warmer, more direct */}
+            <p className="animate-in text-lg sm:text-xl text-denim max-w-lg mb-8 opacity-0 leading-relaxed">
+            Reality Memory gives spaces persistent memory—so you don't have to.
+            </p>
 
-        {/* CTA Buttons */}
-        <div className="animate-in flex flex-col sm:flex-row items-center justify-center gap-4 opacity-0">
-          <Button asChild size="lg" className="text-lg px-8 py-6">
-            <Link href="/app">
-              Try it now
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Link>
-          </Button>
+            {/* Stats inline - feels more editorial than card-based */}
+            <div className="animate-in opacity-0 flex flex-wrap gap-x-8 gap-y-2 mb-10 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-amber font-semibold">55M+</span>
+                <span className="text-denim">people living with dementia</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-amber font-semibold">100%</span>
+                <span className="text-denim">private & local</span>
+              </div>
+            </div>
 
-          <Button
-            variant="outline"
-            size="lg"
-            className="text-lg px-8 py-6"
-            onClick={onWatchHowItWorks}
-          >
-            <Eye className="mr-2 h-5 w-5" />
-            See How It Works
-          </Button>
-        </div>
+            {/* CTA Buttons - solid primary, subtle secondary */}
+            <div className="animate-in flex flex-col sm:flex-row items-start gap-4 opacity-0">
+              <Button
+                asChild
+                size="lg"
+                className="text-base px-7 py-6 bg-amber hover:bg-amber-muted text-ink font-semibold shadow-lg shadow-amber/20"
+              >
+                <Link href="/app">
+                  Try it now
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
 
-        {/* Stats */}
-        <div className="animate-in grid grid-cols-3 gap-12 mt-20 max-w-2xl mx-auto opacity-0">
-          <div className="text-center p-4 rounded-2xl bg-space/30 border border-slateblue/20">
-            <div className="text-4xl font-bold text-eggshell mb-1">55M</div>
-            <div className="text-sm text-denim">Living with dementia</div>
+              <Button
+                variant="ghost"
+                size="lg"
+                className="text-base px-6 py-6 text-denim hover:text-eggshell"
+                onClick={onWatchHowItWorks}
+              >
+                <Play className="mr-2 h-4 w-4 fill-current" />
+                See how it works
+              </Button>
+            </div>
           </div>
-          <div className="text-center p-4 rounded-2xl bg-space/30 border border-slateblue/20">
-            <div className="text-4xl font-bold text-eggshell mb-1">&lt;1s</div>
-            <div className="text-sm text-denim">Response time</div>
-          </div>
-          <div className="text-center p-4 rounded-2xl bg-space/30 border border-slateblue/20">
-            <div className="text-4xl font-bold text-eggshell mb-1">100%</div>
-            <div className="text-sm text-denim">Local &amp; private</div>
+
+          {/* Right side - Product visual (not generic floating shapes) */}
+          <div className="animate-in opacity-0 relative">
+            {/* Mockup container */}
+            <div className="relative bg-space/40 backdrop-blur-sm rounded-3xl border border-slateblue/20 p-6 shadow-2xl shadow-ink/50">
+              {/* Simulated interface */}
+              <div className="space-y-4">
+                {/* Query example */}
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slateblue/30 flex items-center justify-center shrink-0">
+                    <Mic className="w-5 h-5 text-denim" />
+                  </div>
+                  <div className="flex-1 bg-space/60 rounded-2xl rounded-tl-md px-4 py-3">
+                    <p className="text-eggshell text-sm">"Where did I put my reading glasses?"</p>
+                  </div>
+                </div>
+
+                {/* Response example */}
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber/20 flex items-center justify-center shrink-0">
+                    <Volume2 className="w-5 h-5 text-amber" />
+                  </div>
+                  <div className="flex-1 bg-ink/40 rounded-2xl rounded-tl-md px-4 py-3 border border-slateblue/10">
+                    <p className="text-eggshell text-sm mb-2">
+                      Your reading glasses are on the kitchen counter, near the coffee maker.
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-denim">
+                      <MapPin className="w-3 h-3" />
+                      <span>Last seen 2 hours ago</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Architectural floor plan mockup - unified SVG system */}
+                <div className="mt-4 h-36 rounded-xl border border-slateblue/10 overflow-hidden relative floor-plan-grid">
+                  {/* SVG Floor Plan + All Visual Elements */}
+                  <svg
+                    className="absolute inset-0 w-full h-full"
+                    viewBox="0 0 200 100"
+                    preserveAspectRatio="xMidYMid meet"
+                  >
+                    <defs>
+                      {/* Blue glow filter for "You" marker */}
+                      <filter id="blue-glow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="2" />
+                      </filter>
+
+                      {/* Amber glow filter for "Object" marker */}
+                      <filter id="amber-glow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" />
+                      </filter>
+                    </defs>
+
+                    {/* Outer walls - scaled to fill 92% width, 80% height */}
+                    <rect
+                      x="8"
+                      y="10"
+                      width="184"
+                      height="80"
+                      fill="none"
+                      stroke="#333333"
+                      strokeWidth="0.5"
+                    />
+
+                    {/* Room divider - vertical wall with doorway */}
+                    <line x1="89" y1="10" x2="89" y2="39" stroke="#333333" strokeWidth="0.5" />
+                    <line x1="89" y1="56" x2="89" y2="90" stroke="#333333" strokeWidth="0.5" />
+
+                    {/* Kitchen counter (L-shape) */}
+                    <polyline
+                      points="135,90 135,61 175,61"
+                      fill="none"
+                      stroke="#333333"
+                      strokeWidth="0.5"
+                    />
+                    {/* Counter surface hint */}
+                    <line x1="135" y1="75" x2="171" y2="75" stroke="#333333" strokeWidth="0.3" strokeOpacity="0.5" />
+
+                    {/* Small table in living room */}
+                    <rect
+                      x="25"
+                      y="50"
+                      width="23"
+                      height="14"
+                      fill="none"
+                      stroke="#333333"
+                      strokeWidth="0.3"
+                      strokeOpacity="0.5"
+                    />
+
+                    {/* Curved path - starts exactly at YOU position (31, 87) */}
+                    <path
+                      d="M 31 87 Q 60 61, 89 44 Q 123 27, 164 61"
+                      fill="none"
+                      stroke="#D4A574"
+                      strokeOpacity="0.5"
+                      strokeWidth="1.2"
+                      strokeDasharray="4 2"
+                      strokeLinecap="round"
+                      className="path-glow"
+                    />
+
+                    {/* POI marker line - vertical pin from glasses dot (164, 61) */}
+                    <line
+                      x1="164"
+                      y1="61"
+                      x2="164"
+                      y2="47"
+                      stroke="#D4A574"
+                      strokeWidth="0.5"
+                      strokeOpacity="0.6"
+                    />
+
+                    {/* Room labels - uppercase, subtle, with letter spacing */}
+                    <text
+                      x="48"
+                      y="20"
+                      fontSize="4.5"
+                      fill="#888888"
+                      fillOpacity="0.6"
+                      textAnchor="middle"
+                      fontWeight="500"
+                      letterSpacing="1"
+                    >
+                      LIVING ROOM
+                    </text>
+                    <text
+                      x="152"
+                      y="20"
+                      fontSize="4.5"
+                      fill="#888888"
+                      fillOpacity="0.6"
+                      textAnchor="middle"
+                      fontWeight="500"
+                      letterSpacing="1"
+                    >
+                      KITCHEN
+                    </text>
+
+                    {/* "You" marker - blue pulsing dot - EXACT center at (31, 87) */}
+                    <circle
+                      cx="31"
+                      cy="87"
+                      r="2.5"
+                      fill="#748cab"
+                      filter="url(#blue-glow)"
+                      className="svg-pulse-blue"
+                    />
+
+                    {/* "Reading Glasses" label - positioned 14 units above dot (20px visual offset) */}
+                    <text
+                      x="164"
+                      y="40"
+                      fontSize="5"
+                      fill="#D4A574"
+                      fillOpacity="0.7"
+                      textAnchor="middle"
+                      fontWeight="500"
+                      letterSpacing="0.5"
+                    >
+                      READING GLASSES
+                    </text>
+
+                    {/* Object marker - amber pulsing dot at (164, 61) */}
+                    <circle
+                      cx="164"
+                      cy="61"
+                      r="2.5"
+                      fill="#D4A574"
+                      filter="url(#amber-glow)"
+                      className="svg-pulse-amber"
+                    />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Subtle decoration - not a perfect circle */}
+            <div className="absolute -z-10 -top-8 -right-8 w-64 h-64 bg-amber/10 rounded-[40%_60%_70%_30%/40%_50%_60%_50%] blur-3xl" />
           </div>
         </div>
       </div>
 
-      {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-        <div className="w-6 h-10 rounded-full border-2 border-denim/50 flex items-start justify-center p-2">
-          <div className="w-1 h-2 rounded-full bg-denim animate-pulse" />
+      {/* Scroll indicator - simpler */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
+        <div className="flex flex-col items-center gap-2 text-denim/50">
+          <span className="text-xs tracking-wider uppercase">Scroll</span>
+          <div className="w-px h-8 bg-gradient-to-b from-denim/50 to-transparent" />
         </div>
       </div>
     </section>
