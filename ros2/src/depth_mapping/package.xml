@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>depth_mapping</name>
+  <version>0.1.0</version>
+  <description>ROS 2 spatial recognition node — YOLOv8 object detection + stereo depth projection (camera frame only).</description>
+  <maintainer email="vikram.kommera@gmail.com">vkommera</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>rosidl_generator_core</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>message_filters</depend>
+  <depend>libopencv-dev</depend>
+  <depend>rosidl_runtime_cpp</depend>
+
+  <!-- onnxruntime C++ is not a rosdep key.  Install via conda or from GitHub releases. -->
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

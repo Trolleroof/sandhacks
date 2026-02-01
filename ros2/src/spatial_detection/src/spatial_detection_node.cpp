@@ -14,12 +14,15 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <cv_bridge/cv_bridge.h>
 #include <depthai/depthai.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <sensor_msgs/msg/imu.hpp>
 #include <std_msgs/msg/string.hpp>
 
 static const std::vector<std::string> LABEL_MAP = {
@@ -74,6 +77,11 @@ public:
     depth_pub_          = create_publisher<sensor_msgs::msg::Image>("/spatial_detection/depth",          rclcpp::QoS(4));
     detections_pub_     = create_publisher<std_msgs::msg::String>("/spatial_detection/detections",       rclcpp::QoS(4));
 
+    slam_rgb_pub_         = create_publisher<sensor_msgs::msg::Image>("/right/image_rect",       rclcpp::QoS(4));
+    slam_camera_info_pub_ = create_publisher<sensor_msgs::msg::CameraInfo>("/right/camera_info", rclcpp::QoS(4));
+    slam_depth_pub_       = create_publisher<sensor_msgs::msg::Image>("/stereo/depth",           rclcpp::QoS(4));
+    imu_pub_              = create_publisher<sensor_msgs::msg::Imu>("/imu",                      rclcpp::QoS(4));
+
     RCLCPP_INFO(get_logger(), "spatial_detection_node starting");
     RCLCPP_INFO(get_logger(), "  blob_path            : %s", blob_path_.c_str());
     RCLCPP_INFO(get_logger(), "  confidence_threshold : %.2f", confidence_threshold_);
@@ -89,6 +97,48 @@ public:
     auto previewQueue  = device.getOutputQueue("rgb",        4, false);
     auto detectionQueue= device.getOutputQueue("detections", 4, false);
     auto depthQueue    = device.getOutputQueue("depth",      4, false);
+    auto imuQueue      = device.getOutputQueue("imu",        50, false);
+
+    // Read device calibration once; build a static CameraInfo for the color-camera preview
+    {
+      auto calibData = device.getCalibration();
+      auto K = calibData.getCameraIntrinsics(dai::CameraBoardSocket::CAM_A, 416, 416);
+      auto D = calibData.getDistortionCoefficients(dai::CameraBoardSocket::CAM_A);
+
+      camera_info_.width  = 416;
+      camera_info_.height = 416;
+      camera_info_.distortion_model = "plumb_bob";
+      camera_info_.d = std::vector<double>(D.begin(), D.end());
+      camera_info_.k = std::array<double, 9>{(double)K[0][0], (double)K[0][1], (double)K[0][2],
+                                             (double)K[1][0], (double)K[1][1], (double)K[1][2],
+                                             (double)K[2][0], (double)K[2][1], (double)K[2][2]};
+      camera_info_.r = std::array<double, 9>{1,0,0, 0,1,0, 0,0,1};
+      camera_info_.p = std::array<double, 12>{(double)K[0][0], 0, (double)K[0][2], 0,
+                                              0, (double)K[1][1], (double)K[1][2], 0,
+                                              0, 0, 1, 0};
+    }
+
+    // Publish IMU at native rate (~100 Hz) on a dedicated thread
+    std::thread imuThread([this, imuQueue]() {
+      try {
+        while (rclcpp::ok()) {
+          auto imuData = imuQueue->get<dai::IMUData>();
+          for (const auto& pkt : imuData->packets) {
+            sensor_msgs::msg::Imu imuMsg;
+            imuMsg.header.stamp    = get_clock()->now();
+            imuMsg.header.frame_id = "camera_link";
+            imuMsg.linear_acceleration.x = pkt.acceleroMeter.x;
+            imuMsg.linear_acceleration.y = pkt.acceleroMeter.y;
+            imuMsg.linear_acceleration.z = pkt.acceleroMeter.z;
+            imuMsg.angular_velocity.x    = pkt.gyroscope.x;
+            imuMsg.angular_velocity.y    = pkt.gyroscope.y;
+            imuMsg.angular_velocity.z    = pkt.gyroscope.z;
+            imu_pub_->publish(imuMsg);
+          }
+        }
+      } catch (...) {}
+    });
+    imuThread.detach();
 
     auto startTime  = std::chrono::steady_clock::now();
     int  counter    = 0;
@@ -102,7 +152,11 @@ public:
 
       cv::Mat frame      = imgFrame->getCvFrame();
       cv::Mat annotated  = frame.clone();       // separate copy for drawn annotations
-      cv::Mat depthFrame = depth->getFrame();   // values in mm
+      cv::Mat depthFrame = depth->getFrame();   // values in mm (CV_16UC1)
+
+      // Resize raw depth to match the 416x416 color preview so RGB and depth are aligned
+      cv::Mat depthForSlam;
+      cv::resize(depthFrame, depthForSlam, cv::Size(416, 416), 0, 0, cv::INTER_NEAREST);
 
       // Colorize depth map
       cv::Mat depthColor;
@@ -197,6 +251,12 @@ public:
       std_msgs::msg::String detMsg;
       detMsg.data = detJson.str();
       detections_pub_->publish(detMsg);
+
+      // --- SLAM-compatible topics (depth aligned to color camera) ---------------
+      slam_rgb_pub_->publish(*cv_bridge::CvImage(header, "bgr8", frame).toImageMsg());
+      camera_info_.header = header;
+      slam_camera_info_pub_->publish(camera_info_);
+      slam_depth_pub_->publish(*cv_bridge::CvImage(header, "mono16", depthForSlam).toImageMsg());
     }
   }
 
@@ -217,6 +277,13 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr  rgb_annotated_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr  depth_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr    detections_pub_;
+
+  // SLAM-compatible publishers (fed from the same OAK-D pipeline)
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr       slam_rgb_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr  slam_camera_info_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr       slam_depth_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr         imu_pub_;
+  sensor_msgs::msg::CameraInfo                                camera_info_;
 
   void setupPipeline()
   {
@@ -279,6 +346,14 @@ private:
 
     stereo->depth.link(yoloSpatial->inputDepth);
     yoloSpatial->passthroughDepth.link(xoutDepth->input);
+
+    // --- IMU --------------------------------------------------------------------
+    auto imu     = pipeline_.create<dai::node::IMU>();
+    auto xoutImu = pipeline_.create<dai::node::XLinkOut>();
+    xoutImu->setStreamName("imu");
+    imu->enableIMUSensor(dai::IMUSensor::ACCELEROMETER, 100);
+    imu->enableIMUSensor(dai::IMUSensor::GYROSCOPE_CALIBRATED, 100);
+    imu->out.link(xoutImu->input);
   }
 };
 
