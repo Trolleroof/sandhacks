@@ -59,6 +59,15 @@ const DEFAULT_STATE: RosbridgeSpatialState = {
   error: null,
 };
 
+// Throttle configuration to prevent excessive React re-renders
+const POINT_CLOUD_THROTTLE_MS = 1000;  // 1 second for point clouds
+const POSE_THROTTLE_MS = 500;           // 0.5 seconds for pose
+const PATH_THROTTLE_MS = 1000;          // 1 second for path
+const OBJECTS_THROTTLE_MS = 500;        // 0.5 seconds for objects
+
+// Maximum point cloud size to prevent memory issues
+const MAX_POINT_CLOUD_SIZE = 50000;
+
 // Rosbridge delivers std_msgs/String as { data: "<json>" }.
 // Peel that wrapper so downstream parsers see the actual payload.
 function unwrapStringMsg(msg: unknown): unknown {
@@ -129,6 +138,18 @@ function decodePointCloud(msg: PointCloudMsg): VslamVector3[] {
       z: read(base + zField.offset),
     };
   }
+
+  // Add size limiting to prevent memory issues
+  if (points.length > MAX_POINT_CLOUD_SIZE) {
+    const step = Math.ceil(points.length / MAX_POINT_CLOUD_SIZE);
+    const sampled = points.filter((_, index) => index % step === 0);
+    console.warn(
+      `[Rosbridge] Point cloud too large (${points.length} points). ` +
+      `Sampled down to ${sampled.length} points.`
+    );
+    return sampled;
+  }
+
   return points;
 }
 
@@ -200,6 +221,17 @@ export function useRosbridgeSpatial({ url, enabled = true }: RosbridgeSpatialOpt
   const [state, setState] = useState<RosbridgeSpatialState>(DEFAULT_STATE);
   const socketRef = useRef<WebSocket | null>(null);
 
+  // Refs for throttling state updates
+  const lastUpdateTimeRef = useRef({
+    pointCloud: 0,
+    pose: 0,
+    path: 0,
+    objects: 0,
+  });
+
+  const pendingUpdatesRef = useRef<Partial<RosbridgeSpatialState>>({});
+  const flushTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     if (!enabled) return;
 
@@ -227,6 +259,26 @@ export function useRosbridgeSpatial({ url, enabled = true }: RosbridgeSpatialOpt
       setState((prev) => ({ ...prev, status: "error", error: "Rosbridge disconnected" }));
     };
 
+    // Throttle helper functions
+    const shouldUpdate = (
+      lastUpdateTime: number,
+      throttleMs: number
+    ): boolean => {
+      return Date.now() - lastUpdateTime >= throttleMs;
+    };
+
+    const scheduleFlush = () => {
+      if (flushTimeoutRef.current) return;
+
+      flushTimeoutRef.current = setTimeout(() => {
+        if (Object.keys(pendingUpdatesRef.current).length > 0) {
+          setState((prev) => ({ ...prev, ...pendingUpdatesRef.current }));
+          pendingUpdatesRef.current = {};
+        }
+        flushTimeoutRef.current = null;
+      }, 16); // One animation frame
+    };
+
     socket.onmessage = (event) => {
       if (!isActive) return;
       let parsed: RosbridgeMessage | null = null;
@@ -242,24 +294,30 @@ export function useRosbridgeSpatial({ url, enabled = true }: RosbridgeSpatialOpt
 
       if (parsed.topic === "/web/pose") {
         const pose = parsePose(payload);
-        if (pose) {
-          setState((prev) => ({ ...prev, pose }));
+        if (pose && shouldUpdate(lastUpdateTimeRef.current.pose, POSE_THROTTLE_MS)) {
+          lastUpdateTimeRef.current.pose = Date.now();
+          pendingUpdatesRef.current.pose = pose;
+          scheduleFlush();
         }
       }
 
       if (parsed.topic === "/web/pointcloud") {
-        if (isPointCloudMsg(payload)) {
+        if (isPointCloudMsg(payload) && shouldUpdate(lastUpdateTimeRef.current.pointCloud, POINT_CLOUD_THROTTLE_MS)) {
           const points = decodePointCloud(payload);
           if (points.length > 0) {
-            setState((prev) => ({ ...prev, pointCloud: points }));
+            lastUpdateTimeRef.current.pointCloud = Date.now();
+            pendingUpdatesRef.current.pointCloud = points;
+            scheduleFlush();
           }
         }
       }
 
       if (parsed.topic === "/web/path") {
         const points = parsePoints(payload);
-        if (points.length > 0) {
-          setState((prev) => ({ ...prev, path: points }));
+        if (points.length > 0 && shouldUpdate(lastUpdateTimeRef.current.path, PATH_THROTTLE_MS)) {
+          lastUpdateTimeRef.current.path = Date.now();
+          pendingUpdatesRef.current.path = points;
+          scheduleFlush();
         }
       }
 
@@ -272,27 +330,31 @@ export function useRosbridgeSpatial({ url, enabled = true }: RosbridgeSpatialOpt
         const objects = objPayload?.objects;
         const cameraPos = objPayload?.cameraPosition;
 
-        if (objects && Array.isArray(objects)) {
+        if (objects && Array.isArray(objects) && shouldUpdate(lastUpdateTimeRef.current.objects, OBJECTS_THROTTLE_MS)) {
           console.log("[Rosbridge] Received objects:", objects.length);
-          setState((prev) => ({ ...prev, objects }));
-        }
+          lastUpdateTimeRef.current.objects = Date.now();
+          pendingUpdatesRef.current.objects = objects;
 
-        // Also update pose with camera position if provided
-        if (cameraPos && isVector3(cameraPos)) {
-          console.log("[Rosbridge] Received camera position:", cameraPos);
-          setState((prev) => ({
-            ...prev,
-            pose: {
+          // Also update pose with camera position if provided
+          if (cameraPos && isVector3(cameraPos)) {
+            console.log("[Rosbridge] Received camera position:", cameraPos);
+            lastUpdateTimeRef.current.pose = Date.now();
+            pendingUpdatesRef.current.pose = {
               position: cameraPos,
-              orientation: prev.pose?.orientation ?? { x: 0, y: 0, z: 0, w: 1 },
-            },
-          }));
+              orientation: state.pose?.orientation ?? { x: 0, y: 0, z: 0, w: 1 },
+            };
+          }
+
+          scheduleFlush();
         }
       }
     };
 
     return () => {
       isActive = false;
+      if (flushTimeoutRef.current) {
+        clearTimeout(flushTimeoutRef.current);
+      }
       if (socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ op: "unsubscribe", topic: "/web/pose" }));
         socket.send(JSON.stringify({ op: "unsubscribe", topic: "/web/pointcloud" }));
