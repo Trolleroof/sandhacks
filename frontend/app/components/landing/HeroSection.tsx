@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
+import { Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { animations } from "../../lib/animations";
 
@@ -84,8 +85,11 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
               <div className="space-y-4">
                 {/* Query example */}
                 <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slateblue/30 flex items-center justify-center shrink-0">
+                    <Mic className="w-5 h-5 text-denim" />
+                  </div>
                   <div className="flex-1 bg-space/70 rounded-2xl rounded-tl-md px-4 py-3 border border-slateblue/20">
-                    <p className="text-eggshell text-sm">"Where did I put my reading glasses?"</p>
+                    <p className="text-eggshell text-sm">“Where did I put my reading glasses?”</p>
                   </div>
                 </div>
 
