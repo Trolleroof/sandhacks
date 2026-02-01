@@ -3,7 +3,7 @@
 const technologies = [
   { name: "VSLAM", description: "Visual SLAM" },
   { name: "YOLO", description: "Object Detection" },
-  { name: "FastAPI", description: "Backend" },
+  { name: "ROS2", description: "Backend" },
   { name: "Voice", description: "Natural Language" },
 ];
 

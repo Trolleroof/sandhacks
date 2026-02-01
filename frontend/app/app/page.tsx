@@ -20,9 +20,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Navigation } from "lucide-react";
 import type { ObjectLocation } from "../lib/mockData";
-import { mockSpatialData, type Position3D } from "../components/SpatialMap";
+import { mockSpatialData, type Position3D, type SpatialObject } from "../components/SpatialMap";
 
 function rosToThree(point: Position3D): Position3D {
   return { x: point.x, y: point.z, z: -point.y };
@@ -139,58 +139,6 @@ function AppContent() {
     [search, setQuery]
   );
 
-  // Handle guide me
-  const handleGuideMe = useCallback(
-    async (result: ObjectLocation) => {
-      setActiveTarget(result);
-      startGuidance(result);
-
-      try {
-        // Call Cerebras API for intelligent response
-        console.log("[AppPage] Calling /api/chat with:", {
-          query: state.query,
-          objectData: {
-            name: result.name,
-            lastSeen: result.lastSeen,
-            distance: result.distance,
-            direction: result.direction,
-            confidence: result.confidence,
-          },
-        });
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: state.query,
-            objectData: {
-              name: result.name,
-              lastSeen: result.lastSeen,
-              distance: result.distance,
-              direction: result.direction,
-              confidence: result.confidence,
-            },
-          }),
-        });
-
-        console.log("[AppPage] API response status:", response.status, response.ok);
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log("[AppPage] Cerebras response:", data);
-          speak(data.response);
-        } else {
-          const errorText = await response.text();
-          console.error("[AppPage] API error:", errorText);
-          speak(`Found your ${result.name}! It's ${result.distance} away, ${result.direction}.`);
-        }
-      } catch (error) {
-        console.error("[AppPage] Fetch error:", error);
-        speak(`Found your ${result.name}! It's ${result.distance} away, ${result.direction}.`);
-      }
-    },
-    [setActiveTarget, startGuidance, speak, state.query]
-  );
-
   // Handle cancel guidance
   const handleCancelGuidance = useCallback(() => {
     stopGuidance();
@@ -249,8 +197,98 @@ function AppContent() {
     };
   }, [rosbridge.pose, rosbridge.pointCloud, rosbridge.path, rosbridge.objects]);
 
+  const toObjectLocation = useCallback(
+    (obj: SpatialObject): ObjectLocation => {
+      const cameraPos = spatialData.cameraPosition;
+      const dx = obj.position.x - cameraPos.x;
+      const dz = obj.position.z - cameraPos.z;
+      const distanceMeters = Math.sqrt(dx * dx + dz * dz);
+      const angle = Math.atan2(dx, dz) * (180 / Math.PI);
+      const absAngle = Math.abs(angle);
+      const direction =
+        absAngle <= 45
+          ? "in front of you"
+          : absAngle >= 135
+            ? "behind you"
+            : angle > 0
+              ? "to your right"
+              : "to your left";
+
+      return {
+        id: obj.id,
+        name: obj.name,
+        lastSeen: new Date(obj.timestamp).toLocaleString(),
+        timestamp: new Date(obj.timestamp),
+        distance: `${distanceMeters.toFixed(1)} meters`,
+        distanceMeters,
+        direction,
+        bearing: angle,
+        confidence: obj.confidence,
+      };
+    },
+    [spatialData.cameraPosition]
+  );
+
+  // Handle guide me
+  const handleGuideMe = useCallback(
+    async (result: ObjectLocation) => {
+      setActiveTarget(result);
+      startGuidance(result);
+
+      const queryForLlm = state.query.trim().length > 0
+        ? state.query
+        : `find ${result.name}`;
+
+      try {
+        // Call Cerebras API for intelligent response
+        console.log("[AppPage] Calling /api/chat with:", {
+          query: queryForLlm,
+          objectData: {
+            name: result.name,
+            lastSeen: result.lastSeen,
+            distance: result.distance,
+            direction: result.direction,
+            confidence: result.confidence,
+          },
+        });
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: queryForLlm,
+            objectData: {
+              name: result.name,
+              lastSeen: result.lastSeen,
+              distance: result.distance,
+              direction: result.direction,
+              confidence: result.confidence,
+            },
+          }),
+        });
+
+        console.log("[AppPage] API response status:", response.status, response.ok);
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("[AppPage] Cerebras response:", data);
+          speak(data.response);
+        } else {
+          const errorText = await response.text();
+          console.error("[AppPage] API error:", errorText);
+          speak(`Found your ${result.name}! It's ${result.distance} away, ${result.direction}.`);
+        }
+      } catch (error) {
+        console.error("[AppPage] Fetch error:", error);
+        speak(`Found your ${result.name}! It's ${result.distance} away, ${result.direction}.`);
+      }
+    },
+    [setActiveTarget, startGuidance, speak, state.query]
+  );
+
   // State for selected object in map (only used in recall mode)
   const [selectedMapObjectId, setSelectedMapObjectId] = useState<string | null>(null);
+  const [guidingToObjectId, setGuidingToObjectId] = useState<string | null>(null);
+  const [guidanceQuery, setGuidanceQuery] = useState<string | null>(null);
   const selectedMapObject = selectedMapObjectId
     ? spatialData.objects.find((o) => o.id === selectedMapObjectId)
     : null;
@@ -296,6 +334,8 @@ function AppContent() {
             data={spatialData}
             selectedObjectId={state.mode === "recall" ? selectedMapObjectId : null}
             onObjectSelect={state.mode === "recall" ? setSelectedMapObjectId : undefined}
+            guidanceQuery={guidanceQuery}
+            guidanceVoiceEnabled={false}
             className="w-full h-full"
           />
 
@@ -392,15 +432,44 @@ function AppContent() {
                       <div className="text-xs text-denim">
                         Last seen: {new Date(selectedMapObject.timestamp).toLocaleString()}
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => setSelectedMapObjectId(null)}
-                      >
-                        <RotateCcw className="h-3 w-3 mr-2" />
-                        Deselect
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => {
+                            setSelectedMapObjectId(null);
+                            setGuidingToObjectId(null);
+                            setGuidanceQuery(null);
+                          }}
+                        >
+                          <RotateCcw className="h-3 w-3 mr-2" />
+                          Deselect
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          variant={guidingToObjectId === selectedMapObjectId ? "default" : "secondary"}
+                          onClick={() => {
+                            if (!selectedMapObject) return;
+                            setGuidingToObjectId(selectedMapObjectId);
+
+                            // Set the query so the LLM gets the proper context
+                            const searchQuery = `find my ${selectedMapObject.name}`;
+                            setQuery(searchQuery);
+
+                            // Trigger visual guidance path
+                            setGuidanceQuery(selectedMapObject.name);
+                            setTimeout(() => setGuidanceQuery(null), 100);
+
+                            // Trigger LLM guidance (same as search results)
+                            handleGuideMe(toObjectLocation(selectedMapObject));
+                          }}
+                        >
+                          <Navigation className="h-3 w-3 mr-2" />
+                          {guidingToObjectId === selectedMapObjectId ? "Guiding" : "Guide Me"}
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 )}
@@ -513,6 +582,8 @@ function AppContent() {
                 data={spatialData}
                 selectedObjectId={state.mode === "recall" ? selectedMapObjectId : null}
                 onObjectSelect={state.mode === "recall" ? setSelectedMapObjectId : undefined}
+                guidanceQuery={guidanceQuery}
+                guidanceVoiceEnabled={false}
                 className="w-full h-[380px]"
               />
             </TabsContent>
