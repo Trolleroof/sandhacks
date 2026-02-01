@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Maximize2, Minimize2, RotateCcw } from "lucide-react";
+import { ArrowLeft, Maximize2, Minimize2, RotateCcw, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -178,7 +178,8 @@ export default function MapPage() {
                                                     }
                                                 }}
                                             >
-                                                {guidingToObjectId === selectedObjectId ? '🎯 Guiding' : '🧭 Guide Me'}
+                                                <Navigation className="h-3 w-3 mr-2" />
+                                                {guidingToObjectId === selectedObjectId ? 'Guiding' : 'Guide Me'}
                                             </Button>
                                         </div>
                                     </CardContent>

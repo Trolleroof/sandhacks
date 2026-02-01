@@ -266,26 +266,23 @@ function GuidancePath({
         return Math.sqrt(dx * dx + dz * dz);
     }, [startPos, endPos]);
 
+    const lineObject = useMemo(() => {
+        const positions = new Float32Array(pathPoints.flatMap(p => [p.x, p.y, p.z]));
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        const material = new THREE.LineBasicMaterial({
+            color: 0xef4444,
+            linewidth: 2,
+            transparent: true,
+            opacity: 0.8,
+        });
+        return new THREE.Line(geometry, material);
+    }, [pathPoints]);
+
     return (
         <group>
             {/* Guidance line */}
-            <line ref={lineRef}>
-                <bufferGeometry>
-                    <bufferAttribute
-                        attach="attributes-position"
-                        args={[
-                            new Float32Array(pathPoints.flatMap(p => [p.x, p.y, p.z])),
-                            3
-                        ]}
-                    />
-                </bufferGeometry>
-                <lineBasicMaterial
-                    color="#ef4444"
-                    linewidth={2}
-                    transparent
-                    opacity={0.8}
-                />
-            </line>
+            <primitive ref={lineRef} object={lineObject} />
 
             {/* Directional arrow at destination */}
             <group
@@ -557,6 +554,7 @@ interface SpatialMapProps {
     onObjectSelect?: (id: string | null) => void;
     onGuideRequest?: (objectId: string) => void; // Callback for when user requests guidance
     guidanceQuery?: string | null; // External query to trigger guidance (e.g., from voice/text input)
+    guidanceVoiceEnabled?: boolean; // Whether to speak guidance when triggered externally
     className?: string;
 }
 
@@ -566,6 +564,7 @@ export function SpatialMap({
     onObjectSelect,
     onGuideRequest,
     guidanceQuery = null,
+    guidanceVoiceEnabled = true,
     className = ""
 }: SpatialMapProps) {
     const [guidanceState, setGuidanceState] = useState<GuidanceState>({
@@ -594,8 +593,10 @@ export function SpatialMap({
                     targetObjectId: targetObject.id
                 });
 
-                // Speak guidance
-                speakGuidance(targetObject.name, distance);
+                // Speak guidance (optional)
+                if (guidanceVoiceEnabled) {
+                    speakGuidance(targetObject.name, distance);
+                }
 
                 // Notify parent
                 if (onGuideRequest) {
@@ -603,7 +604,14 @@ export function SpatialMap({
                 }
             }
         }
-    }, [guidanceQuery, data.objects, data.cameraPosition, onObjectSelect, onGuideRequest]);
+    }, [
+        guidanceQuery,
+        data.objects,
+        data.cameraPosition,
+        onObjectSelect,
+        onGuideRequest,
+        guidanceVoiceEnabled
+    ]);
 
     const handleObjectClick = (id: string) => {
         if (onObjectSelect) {
@@ -614,45 +622,6 @@ export function SpatialMap({
             setGuidanceState({ active: false, targetObjectId: null });
         }
     };
-
-    const handleGuideMe = () => {
-        if (selectedObjectId) {
-            const targetObject = data.objects.find(obj => obj.id === selectedObjectId);
-            if (targetObject) {
-                // Calculate distance
-                const dx = targetObject.position.x - data.cameraPosition.x;
-                const dz = targetObject.position.z - data.cameraPosition.z;
-                const distance = Math.sqrt(dx * dx + dz * dz);
-
-                // Activate guidance
-                setGuidanceState({
-                    active: true,
-                    targetObjectId: selectedObjectId
-                });
-
-                // Speak guidance
-                speakGuidance(targetObject.name, distance);
-
-                // Notify parent component if callback provided
-                if (onGuideRequest) {
-                    onGuideRequest(selectedObjectId);
-                }
-            }
-        }
-    };
-
-    const handleDeselect = () => {
-        if (onObjectSelect) {
-            onObjectSelect(null);
-        }
-        setGuidanceState({ active: false, targetObjectId: null });
-        stopVoiceGuidance();
-    };
-
-    // Get selected object details
-    const selectedObject = selectedObjectId
-        ? data.objects.find(obj => obj.id === selectedObjectId)
-        : null;
 
     return (
         <div className={`relative w-full h-full min-h-[300px] rounded-lg overflow-hidden bg-slate-900 ${className}`}>
@@ -665,54 +634,6 @@ export function SpatialMap({
                     guidanceState={guidanceState}
                 />
             </Canvas>
-
-            {/* Selected object info panel */}
-            {selectedObject && (
-                <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-md rounded-lg p-4 text-white shadow-xl border border-purple-500/30 max-w-sm">
-                    <div className="flex items-start justify-between mb-3">
-                        <div>
-                            <h3 className="text-lg font-semibold capitalize">{selectedObject.name}</h3>
-                            <p className="text-sm text-gray-400">
-                                Confidence: {Math.round(selectedObject.confidence * 100)}%
-                            </p>
-                        </div>
-                        <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse" />
-                    </div>
-
-                    <div className="text-xs text-gray-400 mb-3 space-y-1">
-                        <div>Position: ({selectedObject.position.x.toFixed(1)}, {selectedObject.position.y.toFixed(1)}, {selectedObject.position.z.toFixed(1)})</div>
-                        <div>
-                            Distance: {Math.sqrt(
-                                Math.pow(selectedObject.position.x - data.cameraPosition.x, 2) +
-                                Math.pow(selectedObject.position.z - data.cameraPosition.z, 2)
-                            ).toFixed(1)}m
-                        </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                        <button
-                            onClick={handleDeselect}
-                            className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md text-sm font-medium transition-colors"
-                        >
-                            Deselect
-                        </button>
-                        <button
-                            onClick={handleGuideMe}
-                            className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                                guidanceState.active && guidanceState.targetObjectId === selectedObjectId
-                                    ? 'bg-red-600 hover:bg-red-700 ring-2 ring-red-400'
-                                    : 'bg-red-500 hover:bg-red-600'
-                            }`}
-                        >
-                            {guidanceState.active && guidanceState.targetObjectId === selectedObjectId
-                                ? '🎯 Guiding...'
-                                : '🧭 Guide Me'
-                            }
-                        </button>
-                    </div>
-                </div>
-            )}
-
 
             {/* Legend overlay */}
             <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-sm rounded-lg p-3 text-xs text-white">
@@ -735,7 +656,7 @@ export function SpatialMap({
 
             {/* Controls hint */}
             <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-white/70">
-                🖱️ Drag to rotate • Scroll to zoom
+                Drag to rotate • Scroll to zoom
             </div>
         </div>
     );
