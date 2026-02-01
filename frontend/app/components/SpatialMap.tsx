@@ -220,25 +220,22 @@ function GuidancePath({
     endPos: Position3D;
     objectName: string;
 }) {
-    const lineRef = useRef<THREE.Line>(null);
-    const arrowRef = useRef<THREE.Group>(null);
+    const lineRef = useRef<THREE.Mesh>(null);
 
-    // Animate the guidance path
+    // Animate the guidance path with subtle pulsing
     useFrame((state) => {
         if (lineRef.current) {
-            // Subtle pulsing effect on the line
-            const material = lineRef.current.material as THREE.LineBasicMaterial;
-            material.opacity = 0.7 + Math.sin(state.clock.elapsedTime * 2) * 0.2;
-        }
-        if (arrowRef.current) {
-            // Gentle bobbing animation on the arrow
-            arrowRef.current.position.y = 0.3 + Math.sin(state.clock.elapsedTime * 3) * 0.1;
+            const material = lineRef.current.material as THREE.MeshStandardMaterial;
+            // Subtle pulsing effect on the emissive intensity
+            material.emissiveIntensity = 0.3 + Math.sin(state.clock.elapsedTime * 2) * 0.15;
         }
     });
 
     // Calculate path points - smooth curve from start to end
     const pathPoints = useMemo(() => {
-        const start = new THREE.Vector3(startPos.x, 0.1, startPos.z);
+        // Note: Camera uses [x, z, y] coordinate mapping (see CameraMarker)
+        // So startPos.y maps to Three.js Z axis
+        const start = new THREE.Vector3(startPos.x, 0.1, startPos.y);
         const end = new THREE.Vector3(endPos.x, 0.1, endPos.z);
 
         // Create a slight arc for visual appeal
@@ -252,77 +249,42 @@ function GuidancePath({
         return curve.getPoints(50);
     }, [startPos, endPos]);
 
-    // Calculate arrow rotation to point at target
-    const arrowRotation = useMemo(() => {
-        const dx = endPos.x - startPos.x;
-        const dz = endPos.z - startPos.z;
-        return Math.atan2(dx, dz);
-    }, [startPos, endPos]);
-
     // Calculate distance for voice guidance
     const distance = useMemo(() => {
         const dx = endPos.x - startPos.x;
-        const dz = endPos.z - startPos.z;
+        const dz = endPos.z - startPos.y; // Use startPos.y for camera's Z coordinate
         return Math.sqrt(dx * dx + dz * dz);
     }, [startPos, endPos]);
 
-    const lineObject = useMemo(() => {
-        const positions = new Float32Array(pathPoints.flatMap(p => [p.x, p.y, p.z]));
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-        const material = new THREE.LineBasicMaterial({
-            color: 0xef4444,
-            linewidth: 2,
-            transparent: true,
-            opacity: 0.8,
-        });
-        return new THREE.Line(geometry, material);
+    // Create tube geometry for a thicker, more visible line
+    const tubeGeometry = useMemo(() => {
+        const curve = new THREE.QuadraticBezierCurve3(
+            pathPoints[0],
+            pathPoints[Math.floor(pathPoints.length / 2)],
+            pathPoints[pathPoints.length - 1]
+        );
+        return new THREE.TubeGeometry(curve, 50, 0.03, 8, false);
     }, [pathPoints]);
 
     return (
         <group>
-            {/* Guidance line */}
-            <primitive ref={lineRef} object={lineObject} />
-
-            {/* Directional arrow at destination */}
-            <group
-                ref={arrowRef}
-                position={[endPos.x, 0.3, endPos.z]}
-                rotation={[0, arrowRotation, 0]}
-            >
-                {/* Arrow cone */}
-                <mesh rotation={[0, 0, 0]}>
-                    <coneGeometry args={[0.15, 0.4, 8]} />
-                    <meshStandardMaterial
-                        color="#ef4444"
-                        emissive="#ef4444"
-                        emissiveIntensity={0.5}
-                    />
-                </mesh>
-
-                {/* Arrow tail */}
-                <mesh position={[0, -0.3, 0]}>
-                    <cylinderGeometry args={[0.05, 0.05, 0.2, 8]} />
-                    <meshStandardMaterial
-                        color="#dc2626"
-                        emissive="#dc2626"
-                        emissiveIntensity={0.3}
-                    />
-                </mesh>
-
-                {/* Glowing ring at base */}
-                <mesh position={[0, -0.4, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                    <ringGeometry args={[0.25, 0.3, 32]} />
-                    <meshBasicMaterial color="#ef4444" transparent opacity={0.4} />
-                </mesh>
-            </group>
+            {/* Guidance line - using tube for better visibility */}
+            <mesh ref={lineRef} geometry={tubeGeometry}>
+                <meshStandardMaterial
+                    color="#ef4444"
+                    emissive="#ef4444"
+                    emissiveIntensity={0.4}
+                    transparent
+                    opacity={0.95}
+                />
+            </mesh>
 
             {/* Distance marker */}
             <Html
                 position={[
                     (startPos.x + endPos.x) / 2,
                     0.5,
-                    (startPos.z + endPos.z) / 2
+                    (startPos.y + endPos.z) / 2
                 ]}
                 center
                 distanceFactor={6}
@@ -517,13 +479,6 @@ function speakGuidance(objectName: string, distance: number, isUpdate = false) {
         utterance.volume = 1.0;
 
         window.speechSynthesis.speak(utterance);
-    }
-}
-
-// Stop voice guidance
-function stopVoiceGuidance() {
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
     }
 }
 
