@@ -33,10 +33,13 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
 
       <div className="relative z-10 max-w-4xl mx-auto">
         {/* Badge */}
+        {/*
         <div className="animate-in inline-flex items-center gap-2 px-4 py-2 rounded-full bg-space border border-slateblue/40 mb-8 opacity-0">
           <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
           <span className="text-sm text-denim">AI-Powered Object Memory</span>
         </div>
+        */}
+        
 
         {/* Title */}
         <h1 className="animate-in text-5xl sm:text-6xl md:text-7xl font-bold text-eggshell mb-6 opacity-0">
