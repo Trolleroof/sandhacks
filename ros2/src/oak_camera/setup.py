@@ -19,7 +19,7 @@ setup(
     zip_safe=True,
     maintainer='dev',
     maintainer_email='dev@example.com',
-    description='OAK-D Camera ROS2 driver with DepthAI and image classification',
+    description='OAK-D annotation node for depthai_ros_driver outputs',
     license='MIT',
     tests_require=['pytest'],
     entry_points={

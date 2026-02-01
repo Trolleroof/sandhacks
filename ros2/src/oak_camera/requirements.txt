@@ -1,13 +1,7 @@
 # OAK Camera Python Dependencies
 
-# DepthAI SDK for OAK camera communication
-depthai>=2.24.0
-
 # OpenCV for image processing
 opencv-python>=4.8.0
 
 # NumPy for array operations
 numpy>=1.24.0
-
-# Blob converter for downloading YOLO models from Luxonis model zoo
-blobconverter>=1.4.0

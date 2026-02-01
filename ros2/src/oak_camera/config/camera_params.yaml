@@ -1,30 +1,21 @@
-# OAK Camera Configuration Parameters
+# OAK Camera Annotation Node Parameters
 
 oak_camera_node:
   ros__parameters:
-    # Camera settings
-    camera_fps: 30
-    preview_width: 416
-    preview_height: 416
-    frame_id: 'oak_rgb_camera_optical_frame'
+    # Local inference (CPU via OpenCV DNN). Requires local model files.
+    use_local_inference: false
+    local_model_path: "/home/chei/Desktop/sandhacks/ros2/src/oak_camera/models/mobilenet_ssd.caffemodel"
+    local_config_path: "/home/chei/Desktop/sandhacks/ros2/src/oak_camera/models/mobilenet_ssd.prototxt"
+    local_labels_path: "/home/chei/Desktop/sandhacks/ros2/src/oak_camera/models/mobilenet_ssd.labels"
+    local_input_width: 300
+    local_input_height: 300
+    local_conf_threshold: 0.5
+    local_scale: 0.007843
+    local_mean: [127.5, 127.5, 127.5]
+    local_swap_rb: false
 
-    # YOLO Spatial Detection settings
-    enable_spatial: true
-    yolo_confidence_threshold: 0.5
-    yolo_iou_threshold: 0.5
-    yolo_model: 'yolo-v4-tiny-tf'
-
-    # Spatial depth settings
-    depth_lower_threshold: 100       # mm - ignore objects closer than 10cm
-    depth_upper_threshold: 10000     # mm - ignore objects farther than 10m
-    bbox_scale_factor: 0.5           # scale factor for depth ROI within bbox
-
-    # Target COCO class IDs to publish (empty = publish all 80)
-    # 24=backpack, 26=handbag, 28=suitcase, 39=bottle, 41=cup,
-    # 56=chair, 63=laptop, 65=remote, 66=keyboard, 67=cell phone,
-    # 73=book, 74=clock
-    target_classes: [24, 26, 28, 39, 41, 56, 63, 65, 66, 67, 73, 74]
-
-    # Device discovery settings
-    device_discovery_attempts: 5
-    device_discovery_pause: 2.0
+    # Disable filtering to allow all detections through.
+    enable_class_filter: false
+    # Filter detections by class id or label name (case-insensitive).
+    # Empty list publishes all detections.
+    target_classes: []
