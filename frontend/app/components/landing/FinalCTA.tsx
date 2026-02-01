@@ -24,7 +24,7 @@ export function FinalCTA() {
         {/* CTA Button */}
         <Button asChild size="lg" className="text-lg px-10 py-6">
           <Link href="/app">
-            Launch Demo
+            Try it now
             <ArrowRight className="ml-2 h-5 w-5" />
           </Link>
         </Button>

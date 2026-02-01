@@ -285,7 +285,7 @@ function AppContent() {
               <ModeToggle mode={state.mode} onModeChange={setMode} />
             </div>
 
-            {/* Mock mode toggle */}
+            {/* Mock mode toggle - commented out
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -303,6 +303,7 @@ function AppContent() {
                 </div>
               </CardContent>
             </Card>
+            */}
 
             {/* Mode-specific controls */}
             {state.mode === "mapping" ? (
@@ -441,6 +442,7 @@ function AppContent() {
             )}
 
             {/* Demo script hint */}
+            {/*
             {state.useMockData && (
               <Card className="bg-slateblue/10 border-slateblue/30">
                 <CardHeader className="pb-2">
@@ -471,6 +473,7 @@ function AppContent() {
                 </CardContent>
               </Card>
             )}
+            */}
           </div>
         </div>
 
