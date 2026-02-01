@@ -368,7 +368,11 @@ private:
     float sx = static_cast<float>(img_w_) / model_input_w_;
     float sy = static_cast<float>(img_h_) / model_input_h_;
 
+    RCLCPP_INFO(get_logger(), "YOLOv8 decode: num_boxes=%ld, num_classes=%d, scale sx=%.2f sy=%.2f, img_size=%dx%d",
+                num_boxes, num_classes, sx, sy, img_w_, img_h_);
+
     std::vector<Detection2D> raw;
+    int debug_count = 0;
     for (int64_t i = 0; i < num_boxes; ++i) {
       // find best class score
       float best_score = 0.0f;
@@ -383,10 +387,23 @@ private:
       if (best_score < confidence_threshold_)
         continue;
 
-      float cx = data[0 * num_boxes + i];
-      float cy = data[1 * num_boxes + i];
-      float bw = data[2 * num_boxes + i];
-      float bh = data[3 * num_boxes + i];
+      // YOLOv8 outputs normalized coordinates (0-1), convert to pixels
+      float cx_norm = data[0 * num_boxes + i];
+      float cy_norm = data[1 * num_boxes + i];
+      float bw_norm = data[2 * num_boxes + i];
+      float bh_norm = data[3 * num_boxes + i];
+
+      // Convert from normalized to model input space (640x640)
+      float cx = cx_norm * model_input_w_;
+      float cy = cy_norm * model_input_h_;
+      float bw = bw_norm * model_input_w_;
+      float bh = bh_norm * model_input_h_;
+
+      if (debug_count < 3) {
+        RCLCPP_INFO(get_logger(), "  Raw YOLO box %d: norm[%.2f,%.2f,%.2f,%.2f] -> pixels[%.1f,%.1f,%.1f,%.1f] score=%.2f class=%d",
+                    debug_count, cx_norm, cy_norm, bw_norm, bh_norm, cx, cy, bw, bh, best_score, best_class);
+        debug_count++;
+      }
 
       Detection2D d;
       d.x1 = std::clamp((cx - bw * 0.5f) * sx, 0.0f,
@@ -399,6 +416,12 @@ private:
                         static_cast<float>(img_h_ - 1));
       d.confidence = best_score;
       d.class_id = best_class;
+
+      if (debug_count <= 3) {
+        RCLCPP_INFO(get_logger(), "    -> Image coords: [%.0f,%.0f,%.0f,%.0f]",
+                    d.x1, d.y1, d.x2, d.y2);
+      }
+
       raw.push_back(d);
     }
 
@@ -448,20 +471,31 @@ private:
     x2 = std::clamp(x2, 0, depth.cols - 1);
     y2 = std::clamp(y2, 0, depth.rows - 1);
 
+    RCLCPP_DEBUG(get_logger(), "sampleDepth: bbox[%d,%d,%d,%d], depth size=%dx%d, type=%d",
+                 x1, y1, x2, y2, depth.cols, depth.rows, depth.type());
+
     if (depth_method_ == "center") {
       uint16_t v = depth.at<uint16_t>((y1 + y2) / 2, (x1 + x2) / 2);
       float zm = static_cast<float>(v) / 1000.0f;
+      RCLCPP_INFO(get_logger(), "Center depth: raw=%u, zm=%.3fm, range[%.2f,%.2f]",
+                  v, zm, min_depth_, max_depth_);
       return (zm >= min_depth_ && zm <= max_depth_) ? zm : 0.0f;
     }
 
     // Median over valid pixels in ROI
     int roi_w = x2 - x1, roi_h = y2 - y1;
-    if (roi_w <= 0 || roi_h <= 0)
+    if (roi_w <= 0 || roi_h <= 0) {
+      RCLCPP_WARN(get_logger(), "Invalid ROI size: %dx%d", roi_w, roi_h);
       return 0.0f;
+    }
 
     cv::Mat roi = depth(cv::Rect(x1, y1, roi_w, roi_h));
     std::vector<float> vals;
     vals.reserve(roi.rows * roi.cols);
+
+    // Sample some raw values for debugging
+    uint16_t sample_raw = roi.at<uint16_t>(0, 0);
+    float sample_zm = static_cast<float>(sample_raw) / 1000.0f;
 
     for (int r = 0; r < roi.rows; ++r)
       for (int c = 0; c < roi.cols; ++c) {
@@ -470,10 +504,19 @@ private:
           vals.push_back(zm);
       }
 
-    if (vals.empty())
+    RCLCPP_INFO(get_logger(),
+                "Depth sampling: ROI=%dx%d, sample_raw=%u (%.3fm), valid_pixels=%zu/%d, range[%.2f,%.2f]",
+                roi_w, roi_h, sample_raw, sample_zm, vals.size(), roi.rows * roi.cols,
+                min_depth_, max_depth_);
+
+    if (vals.empty()) {
+      RCLCPP_WARN(get_logger(), "No valid depth pixels in ROI!");
       return 0.0f;
+    }
     std::nth_element(vals.begin(), vals.begin() + vals.size() / 2, vals.end());
-    return vals[vals.size() / 2];
+    float median = vals[vals.size() / 2];
+    RCLCPP_INFO(get_logger(), "Median depth: %.3fm", median);
+    return median;
   }
 
   std::vector<SpatialResult>
@@ -482,21 +525,34 @@ private:
     std::vector<SpatialResult> results;
     results.reserve(dets.size());
 
+    int valid_count = 0, invalid_count = 0;
+
     for (const auto &det : dets) {
       SpatialResult r;
       r.bbox = det;
+
+      const std::string &label =
+          (det.class_id < static_cast<int>(COCO_LABELS.size()))
+              ? COCO_LABELS[det.class_id]
+              : "unknown";
+
+      RCLCPP_INFO(get_logger(), "Processing detection: %s (%.2f%%) at bbox[%.0f,%.0f,%.0f,%.0f]",
+                  label.c_str(), det.confidence * 100.0f, det.x1, det.y1, det.x2, det.y2);
 
       float Z =
           sampleDepth(depth, static_cast<int>(det.x1), static_cast<int>(det.y1),
                       static_cast<int>(det.x2), static_cast<int>(det.y2));
 
       if (Z <= 0.0f) {
+        RCLCPP_WARN(get_logger(), "  -> INVALID depth for %s", label.c_str());
         r.depth_valid = false;
         r.x = r.y = r.z = r.w = r.h = 0.0;
         results.push_back(r);
+        invalid_count++;
         continue;
       }
 
+      RCLCPP_INFO(get_logger(), "  -> VALID depth: Z=%.3fm, projecting to 3D", Z);
       r.depth_valid = true;
       r.z = Z;
 
@@ -514,8 +570,16 @@ private:
       r.w = x_r - x_l;
       r.h = y_b - y_t;
 
+      RCLCPP_INFO(get_logger(), "  -> 3D position: [%.3f, %.3f, %.3f]m, size: [%.3f, %.3f]m",
+                  r.x, r.y, r.z, r.w, r.h);
+
       results.push_back(r);
+      valid_count++;
     }
+
+    RCLCPP_INFO(get_logger(), "Detection summary: %d total, %d valid, %d invalid",
+                static_cast<int>(dets.size()), valid_count, invalid_count);
+
     return results;
   }
 
