@@ -19,7 +19,7 @@ const lora = Lora({
 });
 
 export const metadata: Metadata = {
-  title: "Reality Memory - Find Anything You've Lost",
+  title: "Recall - Find Anything You've Lost",
   description: "Spatial memory system that helps you find misplaced objects using voice-guided directions",
 };
 

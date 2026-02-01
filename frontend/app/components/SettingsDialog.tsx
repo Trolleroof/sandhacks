@@ -58,7 +58,7 @@ export function SettingsDialog({
                         Settings
                     </DialogTitle>
                     <DialogDescription>
-                        Customize your Reality Memory experience
+                        Customize your Recall experience
                     </DialogDescription>
                 </DialogHeader>
 

@@ -11,7 +11,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { StatusPill } from "./StatusPill";
 import { ModeToggle } from "./ModeToggle";
 import { DebugDrawer } from "./DebugDrawer";
 import { HelpDialog } from "./HelpDialog";
@@ -64,18 +63,19 @@ export function TopNav({
         {/* Left: Logo + Status */}
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-slateblue to-denim flex items-center justify-center">
-              <Brain className="h-6 w-6 text-eggshell" />
-            </div>
+            <img
+              src="/images/logo.png"
+              alt="Recall logo"
+              className="w-30 h-30 object-contain -my-6"
+            />
             <div className="hidden sm:block">
               <h1 className="text-lg font-semibold text-eggshell leading-tight">
-                Reality Memory
+                Recall
               </h1>
               <p className="text-xs text-denim">Spatial object finder</p>
             </div>
           </Link>
 
-          <StatusPill status={status} />
         </div>
 
         {/* Center: Mode Toggle */}
@@ -154,4 +154,3 @@ export function TopNav({
 }
 
 export default TopNav;
-

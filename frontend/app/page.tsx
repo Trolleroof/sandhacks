@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
+import { animate } from "animejs";
 import {
   HeroSection,
   ProblemSection,
@@ -13,11 +14,56 @@ import {
 } from "./components/landing";
 
 export default function LandingPage() {
+  const navRef = useRef<HTMLDivElement>(null);
   const handleWatchHowItWorks = useCallback(() => {
     const element = document.getElementById("how-it-works");
     if (element) {
       element.scrollIntoView({ behavior: "smooth" });
     }
+  }, []);
+
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+
+    const hero = document.getElementById("hero");
+    if (hero) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const isHeroVisible = entries[0]?.isIntersecting;
+          if (isHeroVisible) {
+            animate(nav, {
+              opacity: 0,
+              translateY: -16,
+              duration: 260,
+              ease: "outQuad",
+              begin: () => {
+                nav.style.pointerEvents = "none";
+              },
+            });
+          } else {
+            animate(nav, {
+              opacity: 1,
+              translateY: 0,
+              duration: 800,
+              ease: "outElastic(1, .7)",
+              begin: () => {
+                nav.style.pointerEvents = "auto";
+              },
+            });
+          }
+        },
+        { threshold: 0.6 }
+      );
+      observer.observe(hero);
+
+      return () => {
+        observer.disconnect();
+      };
+    }
+
+    return () => {
+    };
   }, []);
 
   return (
@@ -32,25 +78,36 @@ export default function LandingPage() {
       </div>
 
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-ink/80 backdrop-blur-md border-b border-slateblue/20">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-lg font-semibold text-eggshell">
-            Reality Memory
-          </Link>
-
-          <div className="hidden sm:flex items-center gap-6">
+      <nav className="fixed top-6 left-1/2 z-50 -translate-x-1/2">
+        <div
+          ref={navRef}
+          className="opacity-0 -translate-y-4 pointer-events-none bg-ink/70 backdrop-blur-md border border-white/10 rounded-full px-6 py-3 shadow-[0_12px_40px_rgba(8,12,20,0.45),0_0_30px_rgba(96,134,174,0.15)]"
+        >
+          <div className="relative flex items-center gap-6">
             <button
-              onClick={handleWatchHowItWorks}
-              className="text-sm text-denim hover:text-eggshell transition-colors"
+              onClick={() => {
+                const element = document.getElementById("hero");
+                element?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="relative z-10 text-lg font-semibold text-eggshell"
             >
-              How It Works
+              Recall
             </button>
-            <Link
-              href="/app"
-              className="text-sm px-4 py-2 rounded-[10px] bg-amber text-ink hover:bg-amber-muted transition-colors font-semibold"
-            >
-              Try it now
-            </Link>
+
+            <div className="relative z-10 hidden sm:flex items-center gap-2">
+              <button
+                onClick={handleWatchHowItWorks}
+                className="px-4 py-2 text-sm text-denim hover:text-eggshell hover:bg-space/60 transition-colors rounded-full"
+              >
+                How It Works
+              </button>
+              <Link
+                href="/app"
+                className="px-4 py-2 text-sm text-ink bg-amber hover:bg-amber-muted transition-colors font-semibold rounded-full"
+              >
+                Try it now
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
@@ -70,7 +127,7 @@ export default function LandingPage() {
       <footer className="relative z-10 border-t border-slateblue/20 bg-space/30">
         <div className="max-w-6xl mx-auto px-4 py-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-sm text-eggshell">Reality Memory</span>
+            <span className="text-sm text-eggshell">Recall</span>
 
             <p className="text-sm text-denim text-center">
               Built with love at SanD Hacks 2025
