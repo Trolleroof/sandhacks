@@ -34,6 +34,11 @@ export interface SpatialData {
     path?: Position3D[];
 }
 
+export interface GuidanceState {
+    active: boolean;
+    targetObjectId: string | null;
+}
+
 // Mock data for demonstration
 export const mockSpatialData: SpatialData = {
     objects: [
@@ -198,7 +203,135 @@ function CameraMarker({ position }: { position: Position3D }) {
             {/* Label */}
             <Html position={[0, 0.8, 0]} center>
                 <div className="px-2 py-1 rounded-md text-xs font-medium bg-blue-600 text-white whitespace-nowrap">
-                    📷 You are here
+                    You are here
+                </div>
+            </Html>
+        </group>
+    );
+}
+
+// Guidance Path Component - Red arrow and line from user to target
+function GuidancePath({
+    startPos,
+    endPos,
+    objectName
+}: {
+    startPos: Position3D;
+    endPos: Position3D;
+    objectName: string;
+}) {
+    const lineRef = useRef<THREE.Line>(null);
+    const arrowRef = useRef<THREE.Group>(null);
+
+    // Animate the guidance path
+    useFrame((state) => {
+        if (lineRef.current) {
+            // Subtle pulsing effect on the line
+            const material = lineRef.current.material as THREE.LineBasicMaterial;
+            material.opacity = 0.7 + Math.sin(state.clock.elapsedTime * 2) * 0.2;
+        }
+        if (arrowRef.current) {
+            // Gentle bobbing animation on the arrow
+            arrowRef.current.position.y = 0.3 + Math.sin(state.clock.elapsedTime * 3) * 0.1;
+        }
+    });
+
+    // Calculate path points - smooth curve from start to end
+    const pathPoints = useMemo(() => {
+        const start = new THREE.Vector3(startPos.x, 0.1, startPos.z);
+        const end = new THREE.Vector3(endPos.x, 0.1, endPos.z);
+
+        // Create a slight arc for visual appeal
+        const midPoint = new THREE.Vector3()
+            .addVectors(start, end)
+            .multiplyScalar(0.5);
+        midPoint.y = 0.3; // Raise the middle point slightly
+
+        // Create smooth curve
+        const curve = new THREE.QuadraticBezierCurve3(start, midPoint, end);
+        return curve.getPoints(50);
+    }, [startPos, endPos]);
+
+    // Calculate arrow rotation to point at target
+    const arrowRotation = useMemo(() => {
+        const dx = endPos.x - startPos.x;
+        const dz = endPos.z - startPos.z;
+        return Math.atan2(dx, dz);
+    }, [startPos, endPos]);
+
+    // Calculate distance for voice guidance
+    const distance = useMemo(() => {
+        const dx = endPos.x - startPos.x;
+        const dz = endPos.z - startPos.z;
+        return Math.sqrt(dx * dx + dz * dz);
+    }, [startPos, endPos]);
+
+    return (
+        <group>
+            {/* Guidance line */}
+            <line ref={lineRef}>
+                <bufferGeometry>
+                    <bufferAttribute
+                        attach="attributes-position"
+                        args={[
+                            new Float32Array(pathPoints.flatMap(p => [p.x, p.y, p.z])),
+                            3
+                        ]}
+                    />
+                </bufferGeometry>
+                <lineBasicMaterial
+                    color="#ef4444"
+                    linewidth={2}
+                    transparent
+                    opacity={0.8}
+                />
+            </line>
+
+            {/* Directional arrow at destination */}
+            <group
+                ref={arrowRef}
+                position={[endPos.x, 0.3, endPos.z]}
+                rotation={[0, arrowRotation, 0]}
+            >
+                {/* Arrow cone */}
+                <mesh rotation={[0, 0, 0]}>
+                    <coneGeometry args={[0.15, 0.4, 8]} />
+                    <meshStandardMaterial
+                        color="#ef4444"
+                        emissive="#ef4444"
+                        emissiveIntensity={0.5}
+                    />
+                </mesh>
+
+                {/* Arrow tail */}
+                <mesh position={[0, -0.3, 0]}>
+                    <cylinderGeometry args={[0.05, 0.05, 0.2, 8]} />
+                    <meshStandardMaterial
+                        color="#dc2626"
+                        emissive="#dc2626"
+                        emissiveIntensity={0.3}
+                    />
+                </mesh>
+
+                {/* Glowing ring at base */}
+                <mesh position={[0, -0.4, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                    <ringGeometry args={[0.25, 0.3, 32]} />
+                    <meshBasicMaterial color="#ef4444" transparent opacity={0.4} />
+                </mesh>
+            </group>
+
+            {/* Distance marker */}
+            <Html
+                position={[
+                    (startPos.x + endPos.x) / 2,
+                    0.5,
+                    (startPos.z + endPos.z) / 2
+                ]}
+                center
+                distanceFactor={6}
+            >
+                <div className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-600 text-white whitespace-nowrap shadow-lg">
+                    {distance.toFixed(1)}m to {objectName}
                 </div>
             </Html>
         </group>
@@ -209,11 +342,13 @@ function CameraMarker({ position }: { position: Position3D }) {
 function Scene({
     data,
     selectedObjectId,
-    onObjectClick
+    onObjectClick,
+    guidanceState
 }: {
     data: SpatialData;
     selectedObjectId: string | null;
     onObjectClick: (id: string) => void;
+    guidanceState: GuidanceState;
 }) {
     // Refs to track Three.js geometries for cleanup
     const prevPointGeometryRef = useRef<THREE.BufferGeometry | null>(null);
@@ -316,6 +451,21 @@ function Scene({
                 />
             ))}
 
+            {/* Guidance path - red arrow and line to target */}
+            {guidanceState.active && guidanceState.targetObjectId && (() => {
+                const targetObject = data.objects.find(obj => obj.id === guidanceState.targetObjectId);
+                if (targetObject) {
+                    return (
+                        <GuidancePath
+                            startPos={data.cameraPosition}
+                            endPos={targetObject.position}
+                            objectName={targetObject.name}
+                        />
+                    );
+                }
+                return null;
+            })()}
+
             {/* Point cloud */}
             {pointPositions && (
                 <points>
@@ -351,11 +501,62 @@ function Scene({
     );
 }
 
+// Voice guidance helper function
+function speakGuidance(objectName: string, distance: number, isUpdate = false) {
+    if ('speechSynthesis' in window) {
+        // Cancel any ongoing speech
+        window.speechSynthesis.cancel();
+
+        let message: string;
+        if (isUpdate) {
+            message = `${objectName} is ${distance.toFixed(1)} meters away.`;
+        } else {
+            message = `Guiding you to ${objectName}. It is approximately ${distance.toFixed(1)} meters away. Follow the red path.`;
+        }
+
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
+// Stop voice guidance
+function stopVoiceGuidance() {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+    }
+}
+
+// Utility function to find object by name (fuzzy matching)
+export function findObjectByQuery(objects: SpatialObject[], query: string): SpatialObject | null {
+    const lowerQuery = query.toLowerCase().trim();
+
+    // Exact match first
+    let match = objects.find(obj => obj.name.toLowerCase() === lowerQuery);
+    if (match) return match;
+
+    // Partial match
+    match = objects.find(obj => obj.name.toLowerCase().includes(lowerQuery));
+    if (match) return match;
+
+    // Word match
+    match = objects.find(obj =>
+        lowerQuery.split(' ').some(word => obj.name.toLowerCase().includes(word))
+    );
+
+    return match || null;
+}
+
 // Main component
 interface SpatialMapProps {
     data?: SpatialData;
     selectedObjectId?: string | null;
     onObjectSelect?: (id: string | null) => void;
+    onGuideRequest?: (objectId: string) => void; // Callback for when user requests guidance
+    guidanceQuery?: string | null; // External query to trigger guidance (e.g., from voice/text input)
     className?: string;
 }
 
@@ -363,13 +564,95 @@ export function SpatialMap({
     data = mockSpatialData,
     selectedObjectId = null,
     onObjectSelect,
+    onGuideRequest,
+    guidanceQuery = null,
     className = ""
 }: SpatialMapProps) {
+    const [guidanceState, setGuidanceState] = useState<GuidanceState>({
+        active: false,
+        targetObjectId: null
+    });
+
+    // Handle external guidance queries (from voice/text input)
+    useEffect(() => {
+        if (guidanceQuery) {
+            const targetObject = findObjectByQuery(data.objects, guidanceQuery);
+            if (targetObject) {
+                // Select the object
+                if (onObjectSelect) {
+                    onObjectSelect(targetObject.id);
+                }
+
+                // Calculate distance
+                const dx = targetObject.position.x - data.cameraPosition.x;
+                const dz = targetObject.position.z - data.cameraPosition.z;
+                const distance = Math.sqrt(dx * dx + dz * dz);
+
+                // Activate guidance
+                setGuidanceState({
+                    active: true,
+                    targetObjectId: targetObject.id
+                });
+
+                // Speak guidance
+                speakGuidance(targetObject.name, distance);
+
+                // Notify parent
+                if (onGuideRequest) {
+                    onGuideRequest(targetObject.id);
+                }
+            }
+        }
+    }, [guidanceQuery, data.objects, data.cameraPosition, onObjectSelect, onGuideRequest]);
+
     const handleObjectClick = (id: string) => {
         if (onObjectSelect) {
             onObjectSelect(selectedObjectId === id ? null : id);
         }
+        // Stop guidance when clicking on a different object
+        if (guidanceState.active && guidanceState.targetObjectId !== id) {
+            setGuidanceState({ active: false, targetObjectId: null });
+        }
     };
+
+    const handleGuideMe = () => {
+        if (selectedObjectId) {
+            const targetObject = data.objects.find(obj => obj.id === selectedObjectId);
+            if (targetObject) {
+                // Calculate distance
+                const dx = targetObject.position.x - data.cameraPosition.x;
+                const dz = targetObject.position.z - data.cameraPosition.z;
+                const distance = Math.sqrt(dx * dx + dz * dz);
+
+                // Activate guidance
+                setGuidanceState({
+                    active: true,
+                    targetObjectId: selectedObjectId
+                });
+
+                // Speak guidance
+                speakGuidance(targetObject.name, distance);
+
+                // Notify parent component if callback provided
+                if (onGuideRequest) {
+                    onGuideRequest(selectedObjectId);
+                }
+            }
+        }
+    };
+
+    const handleDeselect = () => {
+        if (onObjectSelect) {
+            onObjectSelect(null);
+        }
+        setGuidanceState({ active: false, targetObjectId: null });
+        stopVoiceGuidance();
+    };
+
+    // Get selected object details
+    const selectedObject = selectedObjectId
+        ? data.objects.find(obj => obj.id === selectedObjectId)
+        : null;
 
     return (
         <div className={`relative w-full h-full min-h-[300px] rounded-lg overflow-hidden bg-slate-900 ${className}`}>
@@ -379,8 +662,57 @@ export function SpatialMap({
                     data={data}
                     selectedObjectId={selectedObjectId}
                     onObjectClick={handleObjectClick}
+                    guidanceState={guidanceState}
                 />
             </Canvas>
+
+            {/* Selected object info panel */}
+            {selectedObject && (
+                <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-md rounded-lg p-4 text-white shadow-xl border border-purple-500/30 max-w-sm">
+                    <div className="flex items-start justify-between mb-3">
+                        <div>
+                            <h3 className="text-lg font-semibold capitalize">{selectedObject.name}</h3>
+                            <p className="text-sm text-gray-400">
+                                Confidence: {Math.round(selectedObject.confidence * 100)}%
+                            </p>
+                        </div>
+                        <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse" />
+                    </div>
+
+                    <div className="text-xs text-gray-400 mb-3 space-y-1">
+                        <div>Position: ({selectedObject.position.x.toFixed(1)}, {selectedObject.position.y.toFixed(1)}, {selectedObject.position.z.toFixed(1)})</div>
+                        <div>
+                            Distance: {Math.sqrt(
+                                Math.pow(selectedObject.position.x - data.cameraPosition.x, 2) +
+                                Math.pow(selectedObject.position.z - data.cameraPosition.z, 2)
+                            ).toFixed(1)}m
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleDeselect}
+                            className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md text-sm font-medium transition-colors"
+                        >
+                            Deselect
+                        </button>
+                        <button
+                            onClick={handleGuideMe}
+                            className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                                guidanceState.active && guidanceState.targetObjectId === selectedObjectId
+                                    ? 'bg-red-600 hover:bg-red-700 ring-2 ring-red-400'
+                                    : 'bg-red-500 hover:bg-red-600'
+                            }`}
+                        >
+                            {guidanceState.active && guidanceState.targetObjectId === selectedObjectId
+                                ? '🎯 Guiding...'
+                                : '🧭 Guide Me'
+                            }
+                        </button>
+                    </div>
+                </div>
+            )}
+
 
             {/* Legend overlay */}
             <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-sm rounded-lg p-3 text-xs text-white">
