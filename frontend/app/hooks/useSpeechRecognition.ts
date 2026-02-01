@@ -156,6 +156,14 @@ export function useSpeechRecognition(
                 errorMessage = "No speech detected. Try again.";
             } else if (event.error === "audio-capture") {
                 errorMessage = "No microphone found. Please connect a microphone.";
+            } else if (event.error === "network") {
+                errorMessage = "Network error. Speech recognition requires an internet connection. Please check your connection and try again.";
+            } else if (event.error === "service-not-allowed") {
+                errorMessage = "Speech recognition service is not allowed. Please check your browser settings.";
+            } else if (event.error === "aborted") {
+                // Don't show error for aborted requests
+                setIsListening(false);
+                return;
             }
 
             setError(errorMessage);

@@ -278,21 +278,6 @@ function GuidancePath({
                     opacity={0.95}
                 />
             </mesh>
-
-            {/* Distance marker */}
-            <Html
-                position={[
-                    (startPos.x + endPos.x) / 2,
-                    0.5,
-                    (startPos.y + endPos.z) / 2
-                ]}
-                center
-                distanceFactor={6}
-            >
-                <div className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-600 text-white whitespace-nowrap shadow-lg">
-                    {distance.toFixed(1)}m to {objectName}
-                </div>
-            </Html>
         </group>
     );
 }
