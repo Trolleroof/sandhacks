@@ -1,25 +1,30 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { AppProvider, useAppState } from "../store/appStore";
-import { useElevenLabsTTS } from "../hooks";
+import { useElevenLabsTTS, useRosbridgeSpatial } from "../hooks";
 import { useObjectSearch, useGuidance, useApiStatus } from "../hooks";
 import { api, mockApi } from "../lib/api";
 import { mockObjects, mockDetections } from "../lib/mockData";
 import {
   TopNav,
-  CameraStreamPanel,
   MappingControls,
   QueryBar,
   ResultsList,
   GuidancePanel,
   ModeToggle,
+  SpatialMap,
 } from "../components";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import type { ObjectLocation } from "../lib/mockData";
+import { mockSpatialData, type Position3D } from "../components/SpatialMap";
+
+function rosToThree(point: Position3D): Position3D {
+  return { x: point.x, y: point.z, z: -point.y };
+}
 
 function AppContent() {
   const {
@@ -195,15 +200,31 @@ function AppContent() {
   );
 
   // Handle camera reconnect
-  const handleCameraReconnect = useCallback(() => {
-    // Re-check API status
-    setStatus("offline");
-  }, [setStatus]);
+  const rosbridge = useRosbridgeSpatial({
+    url: process.env.NEXT_PUBLIC_ROSBRIDGE_URL ?? "ws://localhost:9090",
+    enabled: true,
+  });
 
-  // Get camera stream URL
-  const cameraStreamUrl = state.useMockData
-    ? "/api/placeholder-camera"
-    : api.camera.streamUrl;
+  const spatialData = useMemo(() => {
+    const cameraPosition = rosbridge.pose
+      ? rosToThree(rosbridge.pose.position)
+      : mockSpatialData.cameraPosition;
+
+    const mapPoints = rosbridge.pointCloud.length
+      ? rosbridge.pointCloud.map(rosToThree)
+      : mockSpatialData.mapPoints;
+
+    const path = rosbridge.path.length
+      ? rosbridge.path.map(rosToThree)
+      : undefined;
+
+    return {
+      ...mockSpatialData,
+      cameraPosition,
+      mapPoints,
+      path,
+    };
+  }, [rosbridge.pose, rosbridge.pointCloud, rosbridge.path]);
 
   // Debug data with mock values
   const debugData = {
@@ -241,13 +262,10 @@ function AppContent() {
       <main className="flex-1 relative z-10">
         {/* Desktop Layout */}
         <div className="hidden lg:grid lg:grid-cols-[1fr_400px] gap-6 p-6 h-[calc(100vh-73px)]">
-          {/* Camera Panel */}
-          <CameraStreamPanel
-            streamUrl={cameraStreamUrl}
-            isConnected={state.status === "connected"}
-            showBoundingBoxes={state.showBoundingBoxes}
-            onToggleBoundingBoxes={setShowBoundingBoxes}
-            onReconnect={handleCameraReconnect}
+          {/* Spatial Map */}
+          <SpatialMap
+            data={spatialData}
+            className="w-full h-full"
           />
 
           {/* Control Panel */}
@@ -364,21 +382,18 @@ function AppContent() {
 
         {/* Mobile Layout */}
         <div className="lg:hidden p-4">
-          <Tabs defaultValue="camera" className="w-full">
+          <Tabs defaultValue="map" className="w-full">
             <TabsList className="w-full grid grid-cols-4 mb-4">
-              <TabsTrigger value="camera">Camera</TabsTrigger>
+              <TabsTrigger value="map">Map</TabsTrigger>
               <TabsTrigger value="controls">Controls</TabsTrigger>
               <TabsTrigger value="results">Results</TabsTrigger>
               <TabsTrigger value="debug">Debug</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="camera">
-              <CameraStreamPanel
-                streamUrl={cameraStreamUrl}
-                isConnected={state.status === "connected"}
-                showBoundingBoxes={state.showBoundingBoxes}
-                onToggleBoundingBoxes={setShowBoundingBoxes}
-                onReconnect={handleCameraReconnect}
+            <TabsContent value="map">
+              <SpatialMap
+                data={spatialData}
+                className="w-full h-[380px]"
               />
             </TabsContent>
 
