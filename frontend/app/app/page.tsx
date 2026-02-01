@@ -645,6 +645,12 @@ function AppContent() {
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between">
+                      <span className="text-sm text-denim">ROS Spatial</span>
+                      <Badge variant={rosbridge.status === "connected" ? "success" : rosbridge.status === "error" ? "destructive" : "secondary"}>
+                        {rosbridge.status}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
                       <span className="text-sm text-denim">Mode</span>
                       <Badge variant="secondary">{state.mode}</Badge>
                     </div>

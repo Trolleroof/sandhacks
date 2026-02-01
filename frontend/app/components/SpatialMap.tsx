@@ -590,6 +590,7 @@ export function SpatialMap({
                 />
             </Canvas>
 
+
             {/* Legend overlay */}
             <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-sm rounded-lg p-3 text-xs text-white">
                 <div className="font-medium mb-2">Object Confidence</div>
