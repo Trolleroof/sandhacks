@@ -190,18 +190,18 @@ function CameraMarker({ position }: { position: Position3D }) {
         <group position={[position.x, position.z, position.y]}>
             {/* Camera cone */}
             <mesh rotation={[Math.PI, 0, 0]}>
-                <coneGeometry args={[0.3, 0.5, 4]} />
+                <coneGeometry args={[0.15, 0.25, 4]} />
                 <meshStandardMaterial color="#3b82f6" />
             </mesh>
 
             {/* Camera body */}
-            <mesh position={[0, 0.35, 0]}>
-                <boxGeometry args={[0.3, 0.2, 0.3]} />
+            <mesh position={[0, 0.18, 0]}>
+                <boxGeometry args={[0.15, 0.1, 0.15]} />
                 <meshStandardMaterial color="#1e40af" />
             </mesh>
 
             {/* Label */}
-            <Html position={[0, 0.8, 0]} center>
+            <Html position={[0, 0.4, 0]} center>
                 <div className="px-2 py-1 rounded-md text-xs font-medium bg-blue-600 text-white whitespace-nowrap">
                     You are here
                 </div>

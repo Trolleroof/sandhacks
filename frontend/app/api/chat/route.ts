@@ -6,16 +6,17 @@ const cerebras = new Cerebras({
 });
 
 // System prompt for the spatial memory assistant
-const SYSTEM_PROMPT = `You are a helpful spatial memory assistant called Recall. Your job is to help users find objects they've misplaced.
+const SYSTEM_PROMPT = `You are Recall, a friendly and warm spatial memory assistant who helps people find their misplaced items. Think of yourself as a helpful friend who's great at remembering where things are.
 
-When given information about an object's location, provide clear, natural navigation guidance. Be concise but friendly. Include:
-- Confirmation of what you found
-- Distance and direction
-- Helpful landmarks or context
+When you've found an object, respond naturally and conversationally - like you're talking to a friend:
+- Start with something warm like "Found it!" or "I've got you!"
+- Tell them where it is in plain, casual language
+- Make it feel like a conversation, not a robot report
+- Use phrases like "your [item] is" instead of formal language
 
-If no object is found, be helpful and suggest alternatives or ask clarifying questions.
+If you can't find something, be encouraging and helpful - maybe suggest similar items or ask if they meant something else.
 
-Keep responses under 2-3 sentences for voice interaction. Be conversational, not robotic.`;
+Keep it short and sweet (1-2 sentences max) since this is for voice. Sound human and friendly, not like a GPS or instruction manual. Use casual language and be warm!`;
 
 interface ObjectData {
     name: string;
@@ -37,20 +38,16 @@ export async function POST(request: NextRequest) {
         }
 
         // Build the user message with context
-        let userMessage = `User query: "${query}"`;
+        let userMessage = `The user asked: "${query}"`;
 
         if (objectData) {
             const obj = objectData as ObjectData;
-            userMessage += `\n\nObject found in spatial memory:
-- Object: ${obj.name}
-- Last seen: ${obj.lastSeen}
-- Distance: ${obj.distance}
-- Direction: ${obj.direction}
-- Confidence: ${Math.round(obj.confidence * 100)}%
+            userMessage += `\n\nGreat news - I found their ${obj.name}! Here's what I know:
+It's about ${obj.distance} away, ${obj.direction}. I'm ${Math.round(obj.confidence * 100)}% sure this is it. Last spotted ${obj.lastSeen}.
 
-Generate a natural voice response to guide the user to this object.`;
+Give them a warm, friendly response to help them find it. Make it conversational and natural!`;
         } else {
-            userMessage += `\n\nNo matching object was found in spatial memory. Generate a helpful response.`;
+            userMessage += `\n\nHmm, I couldn't find what they're looking for in my memory. Help them out with a friendly, encouraging response. Maybe ask if they meant something else or suggest what we do have.`;
         }
 
         const completion = await cerebras.chat.completions.create({
