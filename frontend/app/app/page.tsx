@@ -270,7 +270,7 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-ink flex flex-col">
+    <div className="min-h-screen bg-ink flex flex-col font-serif">
       {/* Background */}
       <div className="background-gradient" />
 

@@ -129,7 +129,7 @@ function ObjectMarker({
                 onPointerOver={() => setHovered(true)}
                 onPointerOut={() => setHovered(false)}
             >
-                <sphereGeometry args={[0.2, 32, 32]} />
+                <sphereGeometry args={[0.15, 32, 32]} />
                 <meshStandardMaterial
                     color={color}
                     emissive={color}
@@ -147,7 +147,7 @@ function ObjectMarker({
 
             {/* Ground indicator */}
             <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <circleGeometry args={[0.15, 32]} />
+                <circleGeometry args={[0.12, 32]} />
                 <meshBasicMaterial color={color} transparent opacity={0.3} />
             </mesh>
 
