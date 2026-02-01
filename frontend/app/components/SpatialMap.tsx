@@ -101,9 +101,9 @@ function ObjectMarker({
     useFrame((state) => {
         if (meshRef.current) {
             if (isSelected) {
-                meshRef.current.position.y = 0.3 + Math.sin(state.clock.elapsedTime * 3) * 0.1;
+                meshRef.current.position.y = 0.15 + Math.sin(state.clock.elapsedTime * 3) * 0.05;
             } else {
-                meshRef.current.position.y = 0.3;
+                meshRef.current.position.y = 0.15;
             }
         }
     });
@@ -121,7 +121,7 @@ function ObjectMarker({
             {/* Object marker sphere */}
             <mesh
                 ref={meshRef}
-                position={[0, 0.3, 0]}
+                position={[0, 0.15, 0]}
                 onClick={(e) => {
                     e.stopPropagation();
                     onClick();
@@ -129,33 +129,33 @@ function ObjectMarker({
                 onPointerOver={() => setHovered(true)}
                 onPointerOut={() => setHovered(false)}
             >
-                <sphereGeometry args={[0.15, 32, 32]} />
+                <sphereGeometry args={[0.08, 16, 16]} />
                 <meshStandardMaterial
                     color={color}
                     emissive={color}
-                    emissiveIntensity={hovered || isSelected ? 0.5 : 0.2}
+                    emissiveIntensity={hovered || isSelected ? 0.6 : 0.3}
                 />
             </mesh>
 
             {/* Pulse ring effect for selected */}
             {isSelected && (
-                <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                    <ringGeometry args={[0.4, 0.5, 32]} />
-                    <meshBasicMaterial color="#7c3aed" transparent opacity={0.5} />
+                <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                    <ringGeometry args={[0.2, 0.25, 32]} />
+                    <meshBasicMaterial color="#7c3aed" transparent opacity={0.6} />
                 </mesh>
             )}
 
             {/* Ground indicator */}
             <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <circleGeometry args={[0.12, 32]} />
-                <meshBasicMaterial color={color} transparent opacity={0.3} />
+                <circleGeometry args={[0.06, 16]} />
+                <meshBasicMaterial color={color} transparent opacity={0.4} />
             </mesh>
 
             {/* Label */}
             <Html
-                position={[0, 0.7, 0]}
+                position={[0, 0.4, 0]}
                 center
-                distanceFactor={8}
+                distanceFactor={6}
                 style={{
                     pointerEvents: 'none',
                 }}
