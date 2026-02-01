@@ -97,6 +97,7 @@ export function useSpeechRecognition(
         !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
     const recognitionRef = useRef<SpeechRecognition | null>(null);
+    const isRunningRef = useRef(false); // Track actual running state to prevent race conditions
 
     // Check for browser support
     useEffect(() => {
@@ -145,26 +146,52 @@ export function useSpeechRecognition(
         };
 
         recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-            const errorMessage = event.error || "Speech recognition error";
+            isRunningRef.current = false;
+            let errorMessage = event.error || "Speech recognition error";
+
+            // Provide helpful messages for common errors
+            if (event.error === "not-allowed") {
+                errorMessage = "Microphone blocked. Click the lock icon in your browser's address bar → Site settings → Allow microphone.";
+            } else if (event.error === "no-speech") {
+                errorMessage = "No speech detected. Try again.";
+            } else if (event.error === "audio-capture") {
+                errorMessage = "No microphone found. Please connect a microphone.";
+            }
+
             setError(errorMessage);
             onError?.(errorMessage);
             setIsListening(false);
         };
 
         recognition.onend = () => {
+            isRunningRef.current = false;
             setIsListening(false);
             setInterimTranscript("");
         };
 
         recognition.onstart = () => {
+            isRunningRef.current = true;
             setIsListening(true);
             setError(null);
         };
     }, [onResult, onError]);
 
-    const startListening = useCallback(() => {
+    const startListening = useCallback(async () => {
         const recognition = recognitionRef.current;
-        if (!recognition || isListening) return;
+        if (!recognition) return;
+
+        // Clear any previous errors
+        setError(null);
+
+        // If already running, abort first then restart
+        if (isRunningRef.current) {
+            try {
+                recognition.abort();
+            } catch {
+                // Ignore abort errors
+            }
+            isRunningRef.current = false;
+        }
 
         setError(null);
         setInterimTranscript("");
@@ -172,17 +199,29 @@ export function useSpeechRecognition(
         try {
             recognition.start();
         } catch (err) {
-            // Recognition might already be running
+            // Recognition might already be running - abort and retry once
+            isRunningRef.current = false;
             console.error("Failed to start speech recognition:", err);
+            try {
+                recognition.abort();
+                // Don't retry automatically - let user click again
+            } catch {
+                // Ignore
+            }
         }
-    }, [isListening]);
+    }, [onError]);
 
     const stopListening = useCallback(() => {
         const recognition = recognitionRef.current;
-        if (!recognition || !isListening) return;
+        if (!recognition) return;
 
-        recognition.stop();
-    }, [isListening]);
+        try {
+            recognition.stop();
+        } catch {
+            // Ignore stop errors
+        }
+        isRunningRef.current = false;
+    }, []);
 
     const resetTranscript = useCallback(() => {
         setTranscript("");
