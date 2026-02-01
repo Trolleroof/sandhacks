@@ -40,6 +40,9 @@ target_link_libraries(spatial_detection_node
 install(TARGETS spatial_detection_node
   DESTINATION lib/${PROJECT_NAME}
 )
+install(DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}/launch
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

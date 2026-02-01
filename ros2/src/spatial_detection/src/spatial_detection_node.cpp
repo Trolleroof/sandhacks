@@ -5,9 +5,10 @@
 // Publishes annotated RGB, colorized depth, and per-frame detection data.
 //
 // Publications
-//   /spatial_detection/rgb         (sensor_msgs/Image)   — annotated BGR frame
-//   /spatial_detection/depth       (sensor_msgs/Image)   — colorized depth
-//   /spatial_detection/detections  (std_msgs/String)     — JSON detection array
+//   /spatial_detection/rgb            (sensor_msgs/Image)   — raw BGR frame
+//   /spatial_detection/rgb_annotated  (sensor_msgs/Image)   — bboxes + labels + XYZ
+//   /spatial_detection/depth          (sensor_msgs/Image)   — colorized depth
+//   /spatial_detection/detections     (std_msgs/String)     — JSON detection array
 // ---------------------------------------------------------------------------
 
 #include <iomanip>
@@ -59,9 +60,10 @@ public:
     depth_lower_threshold_  = get_parameter("depth_lower_threshold").as_int();
     depth_upper_threshold_  = get_parameter("depth_upper_threshold").as_int();
 
-    rgb_pub_        = create_publisher<sensor_msgs::msg::Image>("/spatial_detection/rgb",        rclcpp::QoS(4));
-    depth_pub_      = create_publisher<sensor_msgs::msg::Image>("/spatial_detection/depth",      rclcpp::QoS(4));
-    detections_pub_ = create_publisher<std_msgs::msg::String>("/spatial_detection/detections",   rclcpp::QoS(4));
+    rgb_pub_            = create_publisher<sensor_msgs::msg::Image>("/spatial_detection/rgb",            rclcpp::QoS(4));
+    rgb_annotated_pub_  = create_publisher<sensor_msgs::msg::Image>("/spatial_detection/rgb_annotated",  rclcpp::QoS(4));
+    depth_pub_          = create_publisher<sensor_msgs::msg::Image>("/spatial_detection/depth",          rclcpp::QoS(4));
+    detections_pub_     = create_publisher<std_msgs::msg::String>("/spatial_detection/detections",       rclcpp::QoS(4));
 
     RCLCPP_INFO(get_logger(), "spatial_detection_node starting");
     RCLCPP_INFO(get_logger(), "  blob_path            : %s", blob_path_.c_str());
@@ -90,6 +92,7 @@ public:
       auto depth     = depthQueue   ->get<dai::ImgFrame>();
 
       cv::Mat frame      = imgFrame->getCvFrame();
+      cv::Mat annotated  = frame.clone();       // separate copy for drawn annotations
       cv::Mat depthFrame = depth->getFrame();   // values in mm
 
       // Colorize depth map
@@ -137,20 +140,20 @@ public:
         if (static_cast<size_t>(det.label) < LABEL_MAP.size())
           label = LABEL_MAP[det.label];
 
-        cv::rectangle(frame, cv::Point(x1, y1), cv::Point(x2, y2), color, cv::FONT_HERSHEY_SIMPLEX);
-        cv::putText(frame, label,                                  cv::Point(x1+10, y1+20), cv::FONT_HERSHEY_TRIPLEX, 0.5, 255);
+        cv::rectangle(annotated, cv::Point(x1, y1), cv::Point(x2, y2), color, cv::FONT_HERSHEY_SIMPLEX);
+        cv::putText(annotated, label,                                  cv::Point(x1+10, y1+20), cv::FONT_HERSHEY_TRIPLEX, 0.5, 255);
 
         std::ostringstream confStr;
         confStr << std::fixed << std::setprecision(2) << det.confidence * 100;
-        cv::putText(frame, confStr.str() + "%",                    cv::Point(x1+10, y1+35), cv::FONT_HERSHEY_TRIPLEX, 0.5, 255);
+        cv::putText(annotated, confStr.str() + "%",                    cv::Point(x1+10, y1+35), cv::FONT_HERSHEY_TRIPLEX, 0.5, 255);
 
         int sx = static_cast<int>(det.spatialCoordinates.x);
         int sy = static_cast<int>(det.spatialCoordinates.y);
         int sz = static_cast<int>(det.spatialCoordinates.z);
 
-        cv::putText(frame, "X: " + std::to_string(sx) + " mm",    cv::Point(x1+10, y1+50), cv::FONT_HERSHEY_TRIPLEX, 0.5, 255);
-        cv::putText(frame, "Y: " + std::to_string(sy) + " mm",    cv::Point(x1+10, y1+65), cv::FONT_HERSHEY_TRIPLEX, 0.5, 255);
-        cv::putText(frame, "Z: " + std::to_string(sz) + " mm",    cv::Point(x1+10, y1+80), cv::FONT_HERSHEY_TRIPLEX, 0.5, 255);
+        cv::putText(annotated, "X: " + std::to_string(sx) + " mm",    cv::Point(x1+10, y1+50), cv::FONT_HERSHEY_TRIPLEX, 0.5, 255);
+        cv::putText(annotated, "Y: " + std::to_string(sy) + " mm",    cv::Point(x1+10, y1+65), cv::FONT_HERSHEY_TRIPLEX, 0.5, 255);
+        cv::putText(annotated, "Z: " + std::to_string(sz) + " mm",    cv::Point(x1+10, y1+80), cv::FONT_HERSHEY_TRIPLEX, 0.5, 255);
 
         // --- JSON entry -------------------------------------------------------
         detJson << "{"
@@ -163,10 +166,10 @@ public:
       }
       detJson << "]";
 
-      // FPS overlay
+      // FPS overlay (annotated only)
       std::ostringstream fpsStr;
       fpsStr << std::fixed << std::setprecision(2) << fps;
-      cv::putText(frame, fpsStr.str(), cv::Point(2, imgFrame->getHeight() - 4),
+      cv::putText(annotated, fpsStr.str(), cv::Point(2, imgFrame->getHeight() - 4),
                   cv::FONT_HERSHEY_TRIPLEX, 0.4, color);
 
       // --- Publish --------------------------------------------------------------
@@ -174,8 +177,9 @@ public:
       header.stamp    = get_clock()->now();
       header.frame_id = "camera_link";
 
-      rgb_pub_  ->publish(*cv_bridge::CvImage(header, "bgr8", frame).toImageMsg());
-      depth_pub_->publish(*cv_bridge::CvImage(header, "bgr8", depthColor).toImageMsg());
+      rgb_pub_           ->publish(*cv_bridge::CvImage(header, "bgr8", frame).toImageMsg());
+      rgb_annotated_pub_ ->publish(*cv_bridge::CvImage(header, "bgr8", annotated).toImageMsg());
+      depth_pub_         ->publish(*cv_bridge::CvImage(header, "bgr8", depthColor).toImageMsg());
 
       std_msgs::msg::String detMsg;
       detMsg.data = detJson.str();
@@ -197,6 +201,7 @@ private:
 
   // Publishers
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr  rgb_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr  rgb_annotated_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr  depth_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr    detections_pub_;
 
