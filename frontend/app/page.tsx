@@ -54,7 +54,7 @@ export default function LandingPage() {
               href="/app"
               className="text-sm px-4 py-2 rounded-[10px] bg-slateblue text-eggshell hover:bg-slateblue/80 transition-colors"
             >
-              Launch Demo
+              Try it now
             </Link>
           </div>
         </div>

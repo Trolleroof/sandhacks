@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { ArrowRight, Play } from "lucide-react";
+import { ArrowRight, Eye, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { animations } from "../../lib/animations";
 
@@ -16,7 +16,7 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
   useEffect(() => {
     if (heroRef.current) {
       const elements = heroRef.current.querySelectorAll(".animate-in");
-      animations.heroReveal(elements);
+      animations.heroReveal(Array.from(elements));
     }
   }, []);
 
@@ -57,7 +57,7 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
         <div className="animate-in flex flex-col sm:flex-row items-center justify-center gap-4 opacity-0">
           <Button asChild size="lg" className="text-lg px-8 py-6">
             <Link href="/app">
-              Launch Demo
+              Try it now
               <ArrowRight className="ml-2 h-5 w-5" />
             </Link>
           </Button>
@@ -68,8 +68,8 @@ export function HeroSection({ onWatchHowItWorks }: HeroSectionProps) {
             className="text-lg px-8 py-6"
             onClick={onWatchHowItWorks}
           >
-            <Play className="mr-2 h-5 w-5" />
-            Watch How It Works
+            <Eye className="mr-2 h-5 w-5" />
+            See How It Works
           </Button>
         </div>
 
