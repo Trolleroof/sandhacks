@@ -2,61 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useSpeechRecognition, useElevenLabsTTS } from "../hooks";
-import { findNearbyObjects, mockObjects as allMockObjects } from "../lib/mockData";
-
-interface ObjectLocation {
-    id: string;
-    name: string;
-    lastSeen: string;
-    distance: string;
-    direction: string;
-    confidence: number;
-    thumbnail?: string;
-}
-
-// Mock data for demonstration - in production, this would come from backend
-const mockObjects: ObjectLocation[] = [
-    {
-        id: "water_bottle_001",
-        name: "water bottle",
-        lastSeen: "2 minutes ago",
-        distance: "3.2 meters",
-        direction: "to your left, near the window",
-        confidence: 0.94,
-    },
-    {
-        id: "keys_001",
-        name: "keys",
-        lastSeen: "15 minutes ago",
-        distance: "5.1 meters",
-        direction: "behind you, on the desk",
-        confidence: 0.87,
-    },
-    {
-        id: "backpack_001",
-        name: "backpack",
-        lastSeen: "1 hour ago",
-        distance: "2.0 meters",
-        direction: "to your right, by the chair",
-        confidence: 0.91,
-    },
-    {
-        id: "laptop_001",
-        name: "laptop",
-        lastSeen: "5 minutes ago",
-        distance: "1.5 meters",
-        direction: "in front of you, on the table",
-        confidence: 0.98,
-    },
-    {
-        id: "phone_001",
-        name: "phone",
-        lastSeen: "30 seconds ago",
-        distance: "0.8 meters",
-        direction: "to your right, on the couch",
-        confidence: 0.95,
-    },
-];
+import { findNearbyObjects, mockObjects, type ObjectLocation } from "../lib/mockData";
 
 function findObject(query: string): ObjectLocation | null {
     const normalizedQuery = query.toLowerCase().trim();
@@ -141,7 +87,7 @@ export function VoiceInterface() {
 
             try {
                 // Calculate nearby objects if we found the target
-                const nearbyObjects = found ? findNearbyObjects(found, allMockObjects, 1.5) : [];
+                const nearbyObjects = found ? findNearbyObjects(found, mockObjects, 1.5) : [];
 
                 // Call Cerebras API to generate intelligent response
                 console.log("[VoiceInterface] Calling /api/chat with:", { query: searchQuery, objectData: found, nearbyObjects });
