@@ -135,66 +135,60 @@ function AppContent() {
       setQuery(query);
       const results = await search(query);
       console.log("[AppPage] Search results:", results);
-
-      // If we found results, speak about the first one
-      if (results.length > 0) {
-        const first = results[0];
-        try {
-          // Call Cerebras API for intelligent response
-          console.log("[AppPage] Calling /api/chat with:", {
-            query,
-            objectData: {
-              name: first.name,
-              lastSeen: first.lastSeen,
-              distance: first.distance,
-              direction: first.direction,
-              confidence: first.confidence,
-            },
-          });
-          const response = await fetch("/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              query,
-              objectData: {
-                name: first.name,
-                lastSeen: first.lastSeen,
-                distance: first.distance,
-                direction: first.direction,
-                confidence: first.confidence,
-              },
-            }),
-          });
-
-          console.log("[AppPage] API response status:", response.status, response.ok);
-
-          if (response.ok) {
-            const data = await response.json();
-            console.log("[AppPage] Cerebras response:", data);
-            speak(data.response);
-          } else {
-            const errorText = await response.text();
-            console.error("[AppPage] API error:", errorText);
-            speak(`Found your ${first.name}! It's ${first.distance} away, ${first.direction}.`);
-          }
-        } catch (error) {
-          console.error("[AppPage] Fetch error:", error);
-          speak(`Found your ${first.name}! It's ${first.distance} away, ${first.direction}.`);
-        }
-      } else {
-        speak("I couldn't find that object. Try asking about something else.");
-      }
     },
-    [search, speak, setQuery]
+    [search, setQuery]
   );
 
   // Handle guide me
   const handleGuideMe = useCallback(
-    (result: ObjectLocation) => {
+    async (result: ObjectLocation) => {
       setActiveTarget(result);
       startGuidance(result);
+
+      try {
+        // Call Cerebras API for intelligent response
+        console.log("[AppPage] Calling /api/chat with:", {
+          query: state.query,
+          objectData: {
+            name: result.name,
+            lastSeen: result.lastSeen,
+            distance: result.distance,
+            direction: result.direction,
+            confidence: result.confidence,
+          },
+        });
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: state.query,
+            objectData: {
+              name: result.name,
+              lastSeen: result.lastSeen,
+              distance: result.distance,
+              direction: result.direction,
+              confidence: result.confidence,
+            },
+          }),
+        });
+
+        console.log("[AppPage] API response status:", response.status, response.ok);
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("[AppPage] Cerebras response:", data);
+          speak(data.response);
+        } else {
+          const errorText = await response.text();
+          console.error("[AppPage] API error:", errorText);
+          speak(`Found your ${result.name}! It's ${result.distance} away, ${result.direction}.`);
+        }
+      } catch (error) {
+        console.error("[AppPage] Fetch error:", error);
+        speak(`Found your ${result.name}! It's ${result.distance} away, ${result.direction}.`);
+      }
     },
-    [setActiveTarget, startGuidance]
+    [setActiveTarget, startGuidance, speak, state.query]
   );
 
   // Handle cancel guidance

@@ -16,6 +16,8 @@ function rosToThree(point: Position3D): Position3D {
 export default function MapPage() {
     const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [guidingToObjectId, setGuidingToObjectId] = useState<string | null>(null);
+    const [guidanceQuery, setGuidanceQuery] = useState<string | null>(null);
     const rosbridge = useRosbridgeSpatial({
         url: process.env.NEXT_PUBLIC_ROSBRIDGE_URL ?? "ws://localhost:9090",
         enabled: true,
@@ -102,6 +104,8 @@ export default function MapPage() {
                             data={spatialData}
                             selectedObjectId={selectedObjectId}
                             onObjectSelect={setSelectedObjectId}
+                            onGuideRequest={(objectId) => setGuidingToObjectId(objectId)}
+                            guidanceQuery={guidanceQuery}
                             className="w-full h-full"
                         />
                     </div>
@@ -146,14 +150,37 @@ export default function MapPage() {
                                         <div className="text-xs text-denim">
                                             Last seen: {new Date(selectedObject.timestamp).toISOString()}
                                         </div>
-                                        <Button
-                                            className="w-full"
-                                            size="sm"
-                                            onClick={() => setSelectedObjectId(null)}
-                                        >
-                                            <RotateCcw className="h-3 w-3 mr-2" />
-                                            Deselect
-                                        </Button>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                className="flex-1"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    setSelectedObjectId(null);
+                                                    setGuidingToObjectId(null);
+                                                    setGuidanceQuery(null);
+                                                }}
+                                            >
+                                                <RotateCcw className="h-3 w-3 mr-2" />
+                                                Deselect
+                                            </Button>
+                                            <Button
+                                                className="flex-1"
+                                                size="sm"
+                                                variant={guidingToObjectId === selectedObjectId ? "default" : "secondary"}
+                                                onClick={() => {
+                                                    if (selectedObject) {
+                                                        setGuidingToObjectId(selectedObjectId);
+                                                        // Trigger guidance via query (this allows voice/text compatibility)
+                                                        setGuidanceQuery(selectedObject.name);
+                                                        // Reset the query after a short delay to allow re-triggering
+                                                        setTimeout(() => setGuidanceQuery(null), 100);
+                                                    }
+                                                }}
+                                            >
+                                                {guidingToObjectId === selectedObjectId ? '🎯 Guiding' : '🧭 Guide Me'}
+                                            </Button>
+                                        </div>
                                     </CardContent>
                                 </Card>
                             ) : (
