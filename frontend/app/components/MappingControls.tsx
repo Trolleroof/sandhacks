@@ -33,7 +33,7 @@ export function MappingControls({
   className,
 }: MappingControlsProps) {
   const pulseRef = useRef<HTMLDivElement>(null);
-  const animationRef = useRef<ReturnType<typeof animations.mappingPulse>>();
+  const animationRef = useRef<ReturnType<typeof animations.mappingPulse> | null>(null);
 
   useEffect(() => {
     if (state === "active" && pulseRef.current) {

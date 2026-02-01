@@ -5,6 +5,19 @@ import { Map, Brain, Navigation } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { animations } from "../../lib/animations";
 
+// Pre-generated point cloud positions to avoid hydration mismatch
+// (Math.random() produces different values on server vs client)
+const POINT_CLOUD_DOTS = [
+  { cx: 45, cy: 23 }, { cx: 167, cy: 98 }, { cx: 12, cy: 67 }, { cx: 189, cy: 42 },
+  { cx: 78, cy: 134 }, { cx: 134, cy: 15 }, { cx: 56, cy: 89 }, { cx: 23, cy: 112 },
+  { cx: 156, cy: 67 }, { cx: 89, cy: 45 }, { cx: 34, cy: 78 }, { cx: 178, cy: 123 },
+  { cx: 67, cy: 34 }, { cx: 145, cy: 89 }, { cx: 12, cy: 145 }, { cx: 98, cy: 12 },
+  { cx: 123, cy: 67 }, { cx: 45, cy: 123 }, { cx: 189, cy: 78 }, { cx: 67, cy: 56 },
+  { cx: 156, cy: 134 }, { cx: 23, cy: 45 }, { cx: 112, cy: 98 }, { cx: 78, cy: 23 },
+  { cx: 34, cy: 134 }, { cx: 145, cy: 45 }, { cx: 89, cy: 112 }, { cx: 167, cy: 34 },
+  { cx: 56, cy: 67 }, { cx: 123, cy: 145 },
+];
+
 const steps = [
   {
     icon: Map,
@@ -95,11 +108,11 @@ export function HowItWorksSection() {
                   </g>
 
                   {/* Point cloud dots - appearing effect */}
-                  {Array.from({ length: 30 }).map((_, i) => (
+                  {POINT_CLOUD_DOTS.map((dot, i) => (
                     <circle
                       key={`dot-${i}`}
-                      cx={Math.random() * 200}
-                      cy={Math.random() * 150}
+                      cx={dot.cx}
+                      cy={dot.cy}
                       r="1.5"
                       fill="#D4A574"
                       className="point-cloud-dot"

@@ -238,13 +238,22 @@ function AppContent() {
       ? rosbridge.path.map(rosToThree)
       : undefined;
 
+    // Use real detected objects from ROSbridge if available
+    const objects = rosbridge.objects.length > 0
+      ? rosbridge.objects.map((obj) => ({
+        ...obj,
+        position: rosToThree(obj.position),
+      }))
+      : mockSpatialData.objects;
+
     return {
       ...mockSpatialData,
       cameraPosition,
       mapPoints,
       path,
+      objects,
     };
-  }, [rosbridge.pose, rosbridge.pointCloud, rosbridge.path]);
+  }, [rosbridge.pose, rosbridge.pointCloud, rosbridge.path, rosbridge.objects]);
 
   // State for selected object in map (only used in recall mode)
   const [selectedMapObjectId, setSelectedMapObjectId] = useState<string | null>(null);
