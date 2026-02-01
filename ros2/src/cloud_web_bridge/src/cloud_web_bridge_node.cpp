@@ -6,7 +6,9 @@
 // web-facing topics consumed by rosbridge → Three.js.
 //
 // Subscriptions          → Publications
-//   /cloud_map           → /web/pointcloud   (Base64-encoded PointCloud2)
+//   /cloud_map           → /web/pointcloud   (merged, Base64-encoded PointCloud2)
+//   /cloud_ground        ↗
+//   /cloud_obstacles     ↗
 //   /odom                → /web/pose         (position + quaternion)
 //   /mapPath             → /web/path         (array of positions)
 // ---------------------------------------------------------------------------
@@ -95,9 +97,17 @@ public:
     loadParameters();
 
     // ---- subscriptions -----------------------------------------------------
-    cloud_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
+    cloud_map_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
         "/cloud_map", rclcpp::QoS(10),
-        [this](const sensor_msgs::msg::PointCloud2& msg) { onCloud(msg); });
+        [this](const sensor_msgs::msg::PointCloud2& msg) { onCloudMap(msg); });
+
+    cloud_ground_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
+        "/cloud_ground", rclcpp::QoS(10),
+        [this](const sensor_msgs::msg::PointCloud2& msg) { onCloudGround(msg); });
+
+    cloud_obstacles_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
+        "/cloud_obstacles", rclcpp::QoS(10),
+        [this](const sensor_msgs::msg::PointCloud2& msg) { onCloudObstacles(msg); });
 
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
         "/odom", rclcpp::QoS(10),
@@ -150,9 +160,16 @@ private:
   size_t last_path_len_  = 0;
 
   // --- ROS handles ----------------------------------------------------------
-  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_map_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_ground_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_obstacles_sub_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
   rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr path_sub_;
+
+  // Buffered latest message from each cloud topic (nullptr = not yet received)
+  std::shared_ptr<sensor_msgs::msg::PointCloud2> cloud_map_latest_;
+  std::shared_ptr<sensor_msgs::msg::PointCloud2> cloud_ground_latest_;
+  std::shared_ptr<sensor_msgs::msg::PointCloud2> cloud_obstacles_latest_;
 
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr cloud_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pose_pub_;
@@ -192,22 +209,71 @@ private:
   // ==========================================================================
 
   // --- point cloud ----------------------------------------------------------
-  void onCloud(const sensor_msgs::msg::PointCloud2& cloud)
+  void onCloudMap(const sensor_msgs::msg::PointCloud2& cloud)
+  {
+    cloud_map_latest_ = std::make_shared<sensor_msgs::msg::PointCloud2>(cloud);
+    tryPublishCombined();
+  }
+
+  void onCloudGround(const sensor_msgs::msg::PointCloud2& cloud)
+  {
+    cloud_ground_latest_ = std::make_shared<sensor_msgs::msg::PointCloud2>(cloud);
+    tryPublishCombined();
+  }
+
+  void onCloudObstacles(const sensor_msgs::msg::PointCloud2& cloud)
+  {
+    cloud_obstacles_latest_ =
+        std::make_shared<sensor_msgs::msg::PointCloud2>(cloud);
+    tryPublishCombined();
+  }
+
+  // Merge all buffered clouds, apply filters, and publish (rate-limited).
+  void tryPublishCombined()
   {
     if (!shouldPublish(last_cloud_pub_, publish_rate_hz_)) return;
 
-    // Filtering pipeline (all disabled by default → pure pass-through)
-    sensor_msgs::msg::PointCloud2 filtered = cloud;
+    std::vector<const sensor_msgs::msg::PointCloud2*> clouds;
+    if (cloud_map_latest_)      clouds.push_back(cloud_map_latest_.get());
+    if (cloud_ground_latest_)   clouds.push_back(cloud_ground_latest_.get());
+    if (cloud_obstacles_latest_) clouds.push_back(cloud_obstacles_latest_.get());
 
-    if (enable_voxel_) filtered = applyVoxelGrid(filtered);
-    if (enable_passthrough_) filtered = applyPassThrough(filtered);
-    if (enable_outlier_) filtered = applyOutlierRemoval(filtered);
+    if (clouds.empty()) return;
+
+    sensor_msgs::msg::PointCloud2 combined = mergeClouds(clouds);
+
+    if (enable_voxel_)       combined = applyVoxelGrid(combined);
+    if (enable_passthrough_) combined = applyPassThrough(combined);
+    if (enable_outlier_)     combined = applyOutlierRemoval(combined);
+
+    flipZ(combined);
 
     std_msgs::msg::String msg;
-    msg.data = encodePointCloud(filtered);
+    msg.data = encodePointCloud(combined);
     cloud_pub_->publish(msg);
 
     last_cloud_pub_ = Clock::now();
+  }
+
+  // Concatenate the data buffers of multiple PointCloud2 messages that share
+  // the same field layout into a single unorganized cloud.
+  static sensor_msgs::msg::PointCloud2
+  mergeClouds(const std::vector<const sensor_msgs::msg::PointCloud2*>& clouds)
+  {
+    sensor_msgs::msg::PointCloud2 combined = *clouds[0];
+    combined.data.clear();
+
+    uint32_t total_points = 0;
+    for (const auto* c : clouds) {
+      combined.data.insert(
+          combined.data.end(), c->data.begin(), c->data.end());
+      total_points += static_cast<uint32_t>(c->width) * c->height;
+    }
+
+    combined.width    = total_points;
+    combined.height   = 1;
+    combined.row_step = combined.point_step * combined.width;
+    return combined;
   }
 
   // --- pose -----------------------------------------------------------------
@@ -268,6 +334,41 @@ private:
 
     last_path_len_ = path.poses.size();
     last_path_pub_ = Clock::now();
+  }
+
+  // ==========================================================================
+  // Flip the point cloud vertically (negate every Z value in the binary buffer).
+  //
+  // PointCloud2 stores points as a flat byte array.  Each point occupies
+  // `point_step` bytes starting at offset `i * point_step`.  The Z field sits
+  // at a fixed byte offset within that stride (given by fields[].offset) and
+  // is stored as a little-endian float32.  We reinterpret the relevant bytes
+  // as a float, negate it, and write it back.  This is equivalent to a
+  // reflection across the XY-plane:  (x, y, z) → (x, y, −z).
+  // ==========================================================================
+  static void flipZ(sensor_msgs::msg::PointCloud2& cloud)
+  {
+    // Locate the "z" field descriptor.
+    uint32_t z_offset   = 0;
+    bool     found_z    = false;
+    for (const auto& f : cloud.fields) {
+      if (f.name == "z") {
+        z_offset = f.offset;
+        found_z  = true;
+        break;
+      }
+    }
+    if (!found_z) return;
+
+    const uint32_t stride     = cloud.point_step;
+    const size_t   num_points = static_cast<size_t>(cloud.width)
+                              * static_cast<size_t>(cloud.height);
+
+    for (size_t i = 0; i < num_points; ++i) {
+      float* z = reinterpret_cast<float*>(
+          &cloud.data[i * stride + z_offset]);
+      *z = -(*z);
+    }
   }
 
   // ==========================================================================
