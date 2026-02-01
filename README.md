@@ -1,47 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Reality Memory
 
-## Getting Started
+A spatial memory assistant that helps you find objects in your environment using computer vision and 3D mapping.
 
-First, run the development server:
+## What It Does
 
+- **Map your space** — Walk around with a camera to build a 3D map of your environment
+- **Detect objects** — Automatically recognizes and remembers object locations using YOLOv8
+- **Find things** — Ask "Where are my keys?" and get voice-guided directions to the object
+
+## Tech Stack
+
+**Frontend**: Next.js, React Three Fiber, Tailwind CSS  
+**Backend**: ROS2, OpenCV, ONNX Runtime (YOLOv8)  
+**APIs**: Cerebras (LLM), ElevenLabs (TTS)
+
+## Quick Start
+
+### Frontend
 ```bash
+cd frontend/app
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### ROS2 Backend
+```bash
+cd ros2
+colcon build
+source install/setup.bash
+ros2 launch cloud_web_bridge depthai.launch.py
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create `frontend/app/.env.local`:
+```
+CEREBRAS_API_KEY=your_key
+ELEVENLABS_API_KEY=your_key
+NEXT_PUBLIC_ROSBRIDGE_URL=ws://localhost:9090
+```
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+├── frontend/app/     # Next.js web app
+└── ros2/src/         # ROS2 packages
+    ├── cloud_web_bridge/    # WebSocket bridge
+    ├── depth_mapping/       # Spatial recognition
+    └── luxonis_camera/      # Camera driver
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## License
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-
- We are on the verge of greatness. Right now, my node @../src/depth_mapping/src/spatial_recognition_node.cpp outputs a bunch of different spatial            
-  detections that are relative to the camera. I want you to integrate this with @../src/cloud_web_bridge/src/cloud_web_bridge_node.cpp . I want you to        
-  take in these detects, and take the camera pose at that time frame, and using that, transforms these object detections onto the world frame. Then, I        
-  want you to expose a route to the frontend similar to current routes that gives a list of these detections in the world frame. It should be in a            
-  format: {                                                                                                                                                   
-    "objects": [                                                                                                                                              
-      { "id": "...", "name": "...", "position": {x,y,z}, "confidence": 0.94, "timestamp": "..." }                                                             
-    ]                                                                                                                                                         
-  } when requested from the websocket.
+MIT
