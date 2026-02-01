@@ -25,6 +25,7 @@ def generate_launch_description():
                 package="rosbridge_server",
                 executable="rosbridge_websocket",
                 name="rosbridge_websocket",
+                parameters=[{"max_message_size": 50_000_000}],
                 output="screen",
             ),
         ]

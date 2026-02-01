@@ -6,9 +6,7 @@
 // web-facing topics consumed by rosbridge → Three.js.
 //
 // Subscriptions          → Publications
-//   /cloud_map           → /web/pointcloud   (merged, Base64-encoded PointCloud2)
-//   /cloud_ground        ↗
-//   /cloud_obstacles     ↗
+//   /cloud_map           → /web/pointcloud   (Base64-encoded PointCloud2)
 //   /odom                → /web/pose         (position + quaternion)
 //   /mapPath             → /web/path         (array of positions)
 // ---------------------------------------------------------------------------
@@ -101,14 +99,6 @@ public:
         "/cloud_map", rclcpp::QoS(10),
         [this](const sensor_msgs::msg::PointCloud2& msg) { onCloudMap(msg); });
 
-    cloud_ground_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
-        "/cloud_ground", rclcpp::QoS(10),
-        [this](const sensor_msgs::msg::PointCloud2& msg) { onCloudGround(msg); });
-
-    cloud_obstacles_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
-        "/cloud_obstacles", rclcpp::QoS(10),
-        [this](const sensor_msgs::msg::PointCloud2& msg) { onCloudObstacles(msg); });
-
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
         "/odom", rclcpp::QoS(10),
         [this](const nav_msgs::msg::Odometry& msg) { onOdom(msg); });
@@ -120,6 +110,12 @@ public:
     // ---- publishers --------------------------------------------------------
     cloud_pub_ =
         create_publisher<std_msgs::msg::String>("/web/pointcloud", rclcpp::QoS(1));
+    cloud_timer_ = rclcpp::create_timer(
+        this,
+        get_clock(),
+        std::chrono::milliseconds(
+            static_cast<int>(1000.0 / publish_rate_hz_)),
+        [this]() { onCloudTimer(); });
     pose_pub_ =
         create_publisher<std_msgs::msg::String>("/web/pose", rclcpp::QoS(1));
     path_pub_ =
@@ -154,22 +150,20 @@ private:
   using Clock  = std::chrono::steady_clock;
   using TimePt = Clock::time_point;
 
-  TimePt last_cloud_pub_ {};
   TimePt last_pose_pub_  {};
   TimePt last_path_pub_  {};
   size_t last_path_len_  = 0;
 
   // --- ROS handles ----------------------------------------------------------
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_map_sub_;
-  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_ground_sub_;
-  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_obstacles_sub_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
   rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr path_sub_;
 
-  // Buffered latest message from each cloud topic (nullptr = not yet received)
+  // Buffered latest cloud_map message (nullptr = not yet received)
   std::shared_ptr<sensor_msgs::msg::PointCloud2> cloud_map_latest_;
-  std::shared_ptr<sensor_msgs::msg::PointCloud2> cloud_ground_latest_;
-  std::shared_ptr<sensor_msgs::msg::PointCloud2> cloud_obstacles_latest_;
+  bool        cloud_dirty_     = false;
+  std::string last_cloud_json_;
+  rclcpp::TimerBase::SharedPtr cloud_timer_;
 
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr cloud_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pose_pub_;
@@ -212,68 +206,32 @@ private:
   void onCloudMap(const sensor_msgs::msg::PointCloud2& cloud)
   {
     cloud_map_latest_ = std::make_shared<sensor_msgs::msg::PointCloud2>(cloud);
-    tryPublishCombined();
+    cloud_dirty_      = true;
   }
 
-  void onCloudGround(const sensor_msgs::msg::PointCloud2& cloud)
+  // Timer fires at publish_rate_hz.  Re-encodes only when new data has arrived;
+  // always re-publishes the cached JSON so that a late-joining subscriber (e.g.
+  // a restarted frontend via rosbridge) receives the full current map within one
+  // tick.
+  void onCloudTimer()
   {
-    cloud_ground_latest_ = std::make_shared<sensor_msgs::msg::PointCloud2>(cloud);
-    tryPublishCombined();
-  }
+    if (cloud_dirty_ && cloud_map_latest_) {
+      sensor_msgs::msg::PointCloud2 cloud = *cloud_map_latest_;
 
-  void onCloudObstacles(const sensor_msgs::msg::PointCloud2& cloud)
-  {
-    cloud_obstacles_latest_ =
-        std::make_shared<sensor_msgs::msg::PointCloud2>(cloud);
-    tryPublishCombined();
-  }
+      if (enable_voxel_)       cloud = applyVoxelGrid(cloud);
+      if (enable_passthrough_) cloud = applyPassThrough(cloud);
+      if (enable_outlier_)     cloud = applyOutlierRemoval(cloud);
 
-  // Merge all buffered clouds, apply filters, and publish (rate-limited).
-  void tryPublishCombined()
-  {
-    if (!shouldPublish(last_cloud_pub_, publish_rate_hz_)) return;
-
-    std::vector<const sensor_msgs::msg::PointCloud2*> clouds;
-    if (cloud_map_latest_)      clouds.push_back(cloud_map_latest_.get());
-    if (cloud_ground_latest_)   clouds.push_back(cloud_ground_latest_.get());
-    if (cloud_obstacles_latest_) clouds.push_back(cloud_obstacles_latest_.get());
-
-    if (clouds.empty()) return;
-
-    sensor_msgs::msg::PointCloud2 combined = mergeClouds(clouds);
-
-    if (enable_voxel_)       combined = applyVoxelGrid(combined);
-    if (enable_passthrough_) combined = applyPassThrough(combined);
-    if (enable_outlier_)     combined = applyOutlierRemoval(combined);
-
-    flipZ(combined);
-
-    std_msgs::msg::String msg;
-    msg.data = encodePointCloud(combined);
-    cloud_pub_->publish(msg);
-
-    last_cloud_pub_ = Clock::now();
-  }
-
-  // Concatenate the data buffers of multiple PointCloud2 messages that share
-  // the same field layout into a single unorganized cloud.
-  static sensor_msgs::msg::PointCloud2
-  mergeClouds(const std::vector<const sensor_msgs::msg::PointCloud2*>& clouds)
-  {
-    sensor_msgs::msg::PointCloud2 combined = *clouds[0];
-    combined.data.clear();
-
-    uint32_t total_points = 0;
-    for (const auto* c : clouds) {
-      combined.data.insert(
-          combined.data.end(), c->data.begin(), c->data.end());
-      total_points += static_cast<uint32_t>(c->width) * c->height;
+      flipZ(cloud);
+      last_cloud_json_ = encodePointCloud(cloud);
+      cloud_dirty_     = false;
     }
 
-    combined.width    = total_points;
-    combined.height   = 1;
-    combined.row_step = combined.point_step * combined.width;
-    return combined;
+    if (!last_cloud_json_.empty()) {
+      std_msgs::msg::String msg;
+      msg.data = last_cloud_json_;
+      cloud_pub_->publish(msg);
+    }
   }
 
   // --- pose -----------------------------------------------------------------
