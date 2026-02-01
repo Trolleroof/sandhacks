@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppProvider, useAppState } from "../store/appStore";
 import { useElevenLabsTTS, useRosbridgeSpatial } from "../hooks";
 import { useObjectSearch, useGuidance, useApiStatus } from "../hooks";
@@ -19,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { RotateCcw } from "lucide-react";
 import type { ObjectLocation } from "../lib/mockData";
 import { mockSpatialData, type Position3D } from "../components/SpatialMap";
 
@@ -226,6 +228,12 @@ function AppContent() {
     };
   }, [rosbridge.pose, rosbridge.pointCloud, rosbridge.path]);
 
+  // State for selected object in map (only used in recall mode)
+  const [selectedMapObjectId, setSelectedMapObjectId] = useState<string | null>(null);
+  const selectedMapObject = selectedMapObjectId
+    ? spatialData.objects.find((o) => o.id === selectedMapObjectId)
+    : null;
+
   // Debug data with mock values
   const debugData = {
     detections: mockDetections,
@@ -265,6 +273,8 @@ function AppContent() {
           {/* Spatial Map */}
           <SpatialMap
             data={spatialData}
+            selectedObjectId={state.mode === "recall" ? selectedMapObjectId : null}
+            onObjectSelect={state.mode === "recall" ? setSelectedMapObjectId : undefined}
             className="w-full h-full"
           />
 
@@ -320,6 +330,90 @@ function AppContent() {
                       onSearch={handleSearch}
                       isSearching={isSearching}
                     />
+                  </CardContent>
+                </Card>
+
+                {/* Selected Object Details (from map click) */}
+                {selectedMapObject && (
+                  <Card className="border-slateblue/50">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center justify-between">
+                        <span>{selectedMapObject.name}</span>
+                        <Badge
+                          variant={selectedMapObject.confidence > 0.9 ? "success" : "secondary"}
+                        >
+                          {Math.round(selectedMapObject.confidence * 100)}%
+                        </Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div className="text-center p-2 bg-space/50 rounded-lg">
+                          <div className="text-denim text-xs">X</div>
+                          <div className="text-eggshell font-mono">
+                            {selectedMapObject.position.x.toFixed(1)}m
+                          </div>
+                        </div>
+                        <div className="text-center p-2 bg-space/50 rounded-lg">
+                          <div className="text-denim text-xs">Y</div>
+                          <div className="text-eggshell font-mono">
+                            {selectedMapObject.position.y.toFixed(1)}m
+                          </div>
+                        </div>
+                        <div className="text-center p-2 bg-space/50 rounded-lg">
+                          <div className="text-denim text-xs">Z</div>
+                          <div className="text-eggshell font-mono">
+                            {selectedMapObject.position.z.toFixed(1)}m
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-denim">
+                        Last seen: {new Date(selectedMapObject.timestamp).toLocaleString()}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setSelectedMapObjectId(null)}
+                      >
+                        <RotateCcw className="h-3 w-3 mr-2" />
+                        Deselect
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Detected Objects List */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Detected Objects</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                      {spatialData.objects.map((obj) => (
+                        <button
+                          key={obj.id}
+                          onClick={() => setSelectedMapObjectId(obj.id)}
+                          className={`
+                            w-full text-left p-2 rounded-lg transition-colors text-sm
+                            ${selectedMapObjectId === obj.id
+                              ? 'bg-slateblue/30 border border-slateblue'
+                              : 'bg-space/30 hover:bg-space/50 border border-transparent'
+                            }
+                          `}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-eggshell">{obj.name}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {Math.round(obj.confidence * 100)}%
+                            </Badge>
+                          </div>
+                          <div className="text-xs text-denim mt-1">
+                            ({obj.position.x.toFixed(1)}, {obj.position.y.toFixed(1)}, {obj.position.z.toFixed(1)})
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -393,6 +487,8 @@ function AppContent() {
             <TabsContent value="map">
               <SpatialMap
                 data={spatialData}
+                selectedObjectId={state.mode === "recall" ? selectedMapObjectId : null}
+                onObjectSelect={state.mode === "recall" ? setSelectedMapObjectId : undefined}
                 className="w-full h-[380px]"
               />
             </TabsContent>
