@@ -118,12 +118,14 @@ public:
     declare_parameter("passthrough_max_z", 3.0);
     declare_parameter("outlier_mean_k", 50);
     declare_parameter("outlier_stddev_thresh", 1.0);
-    declare_parameter("proximity_threshold", 0.10);
+    declare_parameter("proximity_threshold", 3.0);
     declare_parameter("movement_threshold", 0.5);
     declare_parameter("enable_deduplication", true);
-    declare_parameter("min_confidence", 0.7);
-    declare_parameter("min_detections_to_publish", 2);
-    declare_parameter("update_debounce_seconds", 0.5);
+    declare_parameter("min_confidence", 0.85);
+    declare_parameter("min_detections_to_publish", 3);
+    declare_parameter("update_debounce_seconds", 1.0);
+    declare_parameter("max_tracked_objects", 100);
+    declare_parameter("single_detection_timeout_seconds", 5.0);
 
     loadParameters();
 
@@ -198,6 +200,8 @@ private:
   double min_confidence_;
   uint32_t min_detections_to_publish_;
   double update_debounce_seconds_;
+  uint32_t max_tracked_objects_;
+  double single_detection_timeout_seconds_;
 
   // --- rate-limit bookkeeping (steady_clock avoids ROS clock-type mismatches)
   using Clock  = std::chrono::steady_clock;
@@ -255,6 +259,8 @@ private:
     min_confidence_        = get_parameter("min_confidence").as_double();
     min_detections_to_publish_ = get_parameter("min_detections_to_publish").as_int();
     update_debounce_seconds_ = get_parameter("update_debounce_seconds").as_double();
+    max_tracked_objects_   = get_parameter("max_tracked_objects").as_int();
+    single_detection_timeout_seconds_ = get_parameter("single_detection_timeout_seconds").as_double();
   }
 
   bool shouldPublish(TimePt last, double rate_hz) const
@@ -424,12 +430,22 @@ private:
               det.confidence,
               detections.header.stamp);
         } else {
-          // Create new object
-          createNewObject(
-              det.class_name,
-              world_pos.x, world_pos.y, world_pos.z,
-              det.confidence,
-              detections.header.stamp);
+          // Check if we've hit the maximum object limit
+          if (world_objects_.size() < max_tracked_objects_) {
+            // Create new object
+            createNewObject(
+                det.class_name,
+                world_pos.x, world_pos.y, world_pos.z,
+                det.confidence,
+                detections.header.stamp);
+          } else {
+            RCLCPP_WARN_THROTTLE(
+                get_logger(),
+                *get_clock(),
+                10000,
+                "Max tracked objects limit (%u) reached, ignoring new detections",
+                max_tracked_objects_);
+          }
         }
       } else {
         // OLD BEHAVIOR: Always create new object
@@ -456,6 +472,32 @@ private:
         obj.confidence_sum = det.confidence;
 
         world_objects_[obj.id] = obj;
+      }
+    }
+
+    // Cleanup: Remove single-detection objects that have timed out (likely spam)
+    if (enable_deduplication_) {
+      rclcpp::Time now = detections.header.stamp;
+      std::vector<std::string> objects_to_remove;
+
+      for (const auto& [id, obj] : world_objects_) {
+        // If object only detected once and timeout has passed, mark for removal
+        if (obj.detection_count == 1) {
+          double age = (now - obj.first_seen).seconds();
+          if (age > single_detection_timeout_seconds_) {
+            objects_to_remove.push_back(id);
+          }
+        }
+      }
+
+      // Remove spam objects
+      for (const auto& id : objects_to_remove) {
+        world_objects_.erase(id);
+      }
+
+      if (!objects_to_remove.empty()) {
+        RCLCPP_INFO(get_logger(), "Removed %zu unconfirmed single-detection spam objects",
+                    objects_to_remove.size());
       }
     }
 
