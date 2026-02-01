@@ -131,14 +131,26 @@ function AppContent() {
   // Handle search
   const handleSearch = useCallback(
     async (query: string) => {
+      console.log("[AppPage] Starting search for:", query);
       setQuery(query);
       const results = await search(query);
+      console.log("[AppPage] Search results:", results);
 
       // If we found results, speak about the first one
       if (results.length > 0) {
         const first = results[0];
         try {
           // Call Cerebras API for intelligent response
+          console.log("[AppPage] Calling /api/chat with:", {
+            query,
+            objectData: {
+              name: first.name,
+              lastSeen: first.lastSeen,
+              distance: first.distance,
+              direction: first.direction,
+              confidence: first.confidence,
+            },
+          });
           const response = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -154,13 +166,19 @@ function AppContent() {
             }),
           });
 
+          console.log("[AppPage] API response status:", response.status, response.ok);
+
           if (response.ok) {
             const data = await response.json();
+            console.log("[AppPage] Cerebras response:", data);
             speak(data.response);
           } else {
+            const errorText = await response.text();
+            console.error("[AppPage] API error:", errorText);
             speak(`Found your ${first.name}! It's ${first.distance} away, ${first.direction}.`);
           }
-        } catch {
+        } catch (error) {
+          console.error("[AppPage] Fetch error:", error);
           speak(`Found your ${first.name}! It's ${first.distance} away, ${first.direction}.`);
         }
       } else {

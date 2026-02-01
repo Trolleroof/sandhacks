@@ -129,15 +129,18 @@ export function VoiceInterface() {
         async (searchQuery: string) => {
             if (!searchQuery.trim()) return;
 
+            console.log("[VoiceInterface] Starting search for:", searchQuery);
             setIsSearching(true);
             setResult(null);
 
             // Find object in mock database
             const found = findObject(searchQuery);
+            console.log("[VoiceInterface] Local object search result:", found);
             setResult(found);
 
             try {
                 // Call Cerebras API to generate intelligent response
+                console.log("[VoiceInterface] Calling /api/chat with:", { query: searchQuery, objectData: found });
                 const response = await fetch("/api/chat", {
                     method: "POST",
                     headers: {
@@ -155,10 +158,15 @@ export function VoiceInterface() {
                     }),
                 });
 
+                console.log("[VoiceInterface] API response status:", response.status, response.ok);
+
                 if (response.ok) {
                     const data = await response.json();
+                    console.log("[VoiceInterface] API response data:", data);
                     speak(data.response);
                 } else {
+                    const errorData = await response.text();
+                    console.error("[VoiceInterface] API error response:", errorData);
                     // Fallback to template if Cerebras fails
                     if (found) {
                         speak(`Found your ${found.name}! It's ${found.distance} away, ${found.direction}.`);
@@ -167,7 +175,7 @@ export function VoiceInterface() {
                     }
                 }
             } catch (error) {
-                console.error("Chat API error:", error);
+                console.error("[VoiceInterface] Chat API error:", error);
                 // Fallback to template
                 if (found) {
                     speak(`Found your ${found.name}! It's ${found.distance} away, ${found.direction}.`);
