@@ -22,6 +22,7 @@ def generate_launch_description():
                  'wait_imu_to_init':True,
                  # The "Master" resolution switch (2cm)
                 'Grid/CellSize': '0.02',
+                'Odom/Strategy' : '0'
                 # Input Density (1 = no decimation)
                 #'Grid/DepthDecimation': '0',
                 }]
