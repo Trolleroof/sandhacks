@@ -18,31 +18,28 @@ find_package(OpenCV REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 # ---------- ONNX Runtime (C++ API) ----------
-# Tries cmake package config first; falls back to manual find_library / find_path.
-find_package(onnxruntime QUIET)
-if(NOT onnxruntime_FOUND)
-  find_library(ONNXRUNTIME_LIB NAMES onnxruntime
-    PATHS /usr/local/lib /usr/lib /opt/conda/lib)
-  find_path(ONNXRUNTIME_INCLUDE_DIR NAMES onnxruntime_cxx_api.h
-    PATHS /usr/local/include /usr/include
-          /opt/conda/include
-          /usr/local/include/onnxruntime
-          /usr/include/onnxruntime
-          /opt/conda/include/onnxruntime)
-  if(NOT (ONNXRUNTIME_LIB AND ONNXRUNTIME_INCLUDE_DIR))
-    message(FATAL_ERROR
-      "onnxruntime C++ not found.\n"
-      "Install via:\n"
-      "  conda install -c conda-forge onnxruntime\n"
-      "or download a release from\n"
-      "  https://github.com/microsoft/onnxruntime/releases\n"
-      "and set CMAKE_PREFIX_PATH accordingly.")
-  endif()
-  message(STATUS "onnxruntime (manual): lib=${ONNXRUNTIME_LIB}  inc=${ONNXRUNTIME_INCLUDE_DIR}")
+find_library(ONNXRUNTIME_LIB NAMES onnxruntime
+  PATHS /opt/onnxruntime/lib /usr/local/lib /usr/lib /opt/conda/lib)
+find_path(ONNXRUNTIME_INCLUDE_DIR NAMES onnxruntime_cxx_api.h
+  PATHS /opt/onnxruntime/include
+        /usr/local/include /usr/include
+        /opt/conda/include
+        /usr/local/include/onnxruntime
+        /usr/include/onnxruntime
+        /opt/conda/include/onnxruntime)
+if(NOT (ONNXRUNTIME_LIB AND ONNXRUNTIME_INCLUDE_DIR))
+  message(FATAL_ERROR
+    "onnxruntime C++ not found.\n"
+    "Install via:\n"
+    "  conda install -c conda-forge onnxruntime\n"
+    "or download a release from\n"
+    "  https://github.com/microsoft/onnxruntime/releases\n"
+    "and set CMAKE_PREFIX_PATH accordingly.")
 endif()
+message(STATUS "onnxruntime: lib=${ONNXRUNTIME_LIB}  inc=${ONNXRUNTIME_INCLUDE_DIR}")
 
 # ---------- Custom messages ----------
-rosidl_generate_types(${PROJECT_NAME}
+rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SpatialDetection.msg"
   "msg/SpatialDetectionArray.msg"
   DEPENDENCIES geometry_msgs std_msgs
@@ -65,15 +62,15 @@ ament_target_dependencies(spatial_recognition_node
 )
 
 # Link generated messages
-target_link_libraries(spatial_recognition_node ${PROJECT_NAME})
+rosidl_get_typesupport_target(depth_mapping_typesupport_target
+  ${PROJECT_NAME} rosidl_typesupport_cpp)
+target_link_libraries(spatial_recognition_node
+  ${depth_mapping_typesupport_target}
+)
 
 # Link ONNX Runtime
-if(onnxruntime_FOUND)
-  target_link_libraries(spatial_recognition_node onnxruntime)
-else()
-  target_include_directories(spatial_recognition_node PRIVATE ${ONNXRUNTIME_INCLUDE_DIR})
-  target_link_libraries(spatial_recognition_node ${ONNXRUNTIME_LIB})
-endif()
+target_include_directories(spatial_recognition_node PRIVATE ${ONNXRUNTIME_INCLUDE_DIR})
+target_link_libraries(spatial_recognition_node ${ONNXRUNTIME_LIB})
 
 # ---------- Install ----------
 install(TARGETS spatial_recognition_node
