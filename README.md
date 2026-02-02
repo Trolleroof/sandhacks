@@ -50,6 +50,8 @@ NEXT_PUBLIC_ROSBRIDGE_URL=ws://localhost:9090
     └── luxonis_camera/      # Camera driver
 ```
 
+## Demo Video
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/WG91Xdzazvk/0.jpg)](https://www.youtube.com/watch?v=WG91Xdzazvk)
 ## License
 
 MIT
