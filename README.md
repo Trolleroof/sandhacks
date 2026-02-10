@@ -1,4 +1,4 @@
-# Reality Memory
+# Recall
 
 A spatial memory assistant that helps you find objects in your environment using computer vision and 3D mapping.
 
